@@ -20,49 +20,47 @@ int main()
     );
     cam.dir.Normalize();
 
-    PointLight sun(
-        {25.0f, 100.0f, 15.0f},
-        1.0f,
-        {255, 255, 255}
-    );
+    Color sunCol(255, 235, 200);
+    float sunStr = 0.25f;
+
+    std::shared_ptr<Light> lightPtrs[] = {
+        /*std::make_shared<GlobalLight>(GlobalLight(
+            {0.8f, -1.0f, 0.2f}, sunStr, sunCol
+        )),*/
+
+        std::make_shared<PointLight>(PointLight(
+            {4.0f, 10.0f, -1.0f},
+            35.0f,
+            {255, 230, 195}
+        )),
+    };
+    int lightCount = sizeof(lightPtrs) / sizeof(std::shared_ptr<Light>);
 
 
     std::shared_ptr<Shape> shapePtrs[] = {
-        std::make_shared<Cube>(Cube(
-            { -4.0f, -2.5f, -4.0f },
-            {  4.0f, -3.0f,  4.0f },
-            { 0.0f, {255, 255, 255} }
+        std::make_shared<Plane>(Plane(
+            { 0.0f, -1.5f, 0.0f },
+            {  0.0f, 1.0f,  0.0f },
+            { 0.0f, {165, 215, 185} }
         )),
         
         std::make_shared<Cube>(Cube(
             { -0.5f, -0.5f, -0.5f },
             {  0.5f,  0.5f,  0.5f },
-            { 0.0f, {255, 0, 0} }
+            { 0.0f, {230, 100, 50} }
         )),
-
-        /*std::make_shared<Cube>(Cube(
-            { -0.50000f, -0.49999f, -0.49999f },
-            {  0.50000f,  0.49999f,  0.49999f },
-            { 0.0f, {255, 0, 0} }
+        
+        std::make_shared<Tri>(Tri(
+            { 4.50f, 2.4f, -0.6f },
+            { 5.5f, 1.8f, -0.7f },
+            { 4.75f, 2.2f,  0.8f },
+            { 0.0f, {100, 100, 255} }
         )),
-
-        std::make_shared<Cube>(Cube(
-            { -0.49999f, -0.50000f, -0.49999f },
-            {  0.49999f,  0.50000f,  0.49999f },
-            { 0.0f, {0, 255, 0} }
-        )),
-
-        std::make_shared<Cube>(Cube(
-            { -0.49999f, -0.49999f, -0.50000f },
-            {  0.49999f,  0.49999f,  0.50000f },
-            { 0.0f, {0, 0, 255} }
-        )),*/
-
 
         std::make_shared<Sphere>(Sphere(
-            0.66f,
+            0.75f,
             { -3.0f, 0.0f, 0.0f },
-            { 0.0f, {255, 255, 255} }
+            { 0.0f, {125, 110, 95} }
         )),
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(std::shared_ptr<Shape>);
@@ -70,8 +68,9 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 320, 
-        h = 180;
+        w = 320,
+        h = 180,
+        dim = w * h;
 
     sf::RenderWindow window(
         sf::VideoMode(w, h),
@@ -93,6 +92,17 @@ int main()
     Vec3 camUp = cam.dir.Cross(camRight);
     camUp.Normalize();
 
+    bool disableScanSpeed = false;
+    unsigned int scanSpeed = dim / 8;
+    unsigned int currPix = 0;
+
+    sf::Image img;
+    sf::Texture tex;
+    sf::Sprite sprite;
+
+    img.create(w, h, sf::Color::Black);
+    sprite.setScale((float)scaleW, (float)scaleH);
+
 
     sf::Clock clock;
     float lT = 0.0f, tT = 0.0f, dT = 0.0f;
@@ -107,6 +117,33 @@ int main()
         lT = tT;
         tT = clock.getElapsedTime().asSeconds();
         dT = tT - lT;
+
+        if (!disableScanSpeed)
+        {
+            if (dT > 0.3f)
+                scanSpeed -= w * 32;
+            else if (dT > 0.2f)
+                scanSpeed -= w * 24;
+            else if (dT > 0.15f)
+                scanSpeed -= w * 12;
+            else if (dT > 0.125f)
+                scanSpeed -= w * 4;
+            else if (dT > 0.11f)
+                scanSpeed -= w * 2;
+            else if (dT > 0.09f)
+                scanSpeed -= w;
+
+            else if (dT < 0.07f)
+                scanSpeed += w / 2;
+            else if (dT < 0.06f)
+                scanSpeed += w;
+            else if (dT < 0.04f)
+                scanSpeed += w * 2;
+            else if (dT < 0.02f)
+                scanSpeed += w * 4;
+
+            scanSpeed = std::max(1u, std::min(scanSpeed, dim));
+        }
 
 
         sf::Event event;
@@ -124,18 +161,30 @@ int main()
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
             cam.pos += cam.dir * 4.0f * dT;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
             cam.pos -= cam.dir * 4.0f * dT;
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
             cam.pos += camRight * 4.0f * dT;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
             cam.pos -= camRight * 4.0f * dT;
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
             cam.pos += camUp * 4.0f * dT;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
             cam.pos -= camUp * 4.0f * dT;
+
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Tab))
+        {
+            scanSpeed = dim;
+            disableScanSpeed = true;
+        }
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::F))
+        {
+            scanSpeed = dim / 2;
+            disableScanSpeed = false;
+        }
 
         deltas = fixed - sf::Mouse::getPosition();
         if (deltas != sf::Vector2i(0, 0))
@@ -162,10 +211,6 @@ int main()
             };
         }
 
-
-        sf::Image img;
-        img.create(w, h, sf::Color::Black);
-
         camRight = cam.dir.Cross({0.0f, -1.0f, 0.0f});
         camRight.Normalize();
 
@@ -178,77 +223,137 @@ int main()
 
         Vec3 blLocal(-pWidth / 2.0f, -pHeight / 2.0f, 1.0f);
 
-        for (unsigned int y = 0; y < h; y++)
+        for (int i = 0; i < scanSpeed; i++)
         {
-            float v = 1.0f - (float)y / (float)h;
+            unsigned int
+                x = currPix % w,
+                y = currPix / w;
 
-            for (unsigned int x = 0; x < w; x++)
+            float 
+                v = 1.0f - (float)y / (float)h,
+                u = (float)x / (float)w;
+
+            Vec3 pLocal = blLocal + Vec3(pWidth * u, pHeight * v, 0.0f);
+            Vec3 p = camRight * pLocal.x + camUp * pLocal.y + cam.dir * pLocal.z;
+            p.Normalize();
+
+            Ray ray(cam.pos, p);
+
+            Hit bestHit = {};
+            Hit hit = {};
+            float len = 0.0f;
+            bool hasHitSomething = false;
+
+            Vec3 hitCol = Vec3((float)sunCol.r, (float)sunCol.g, (float)sunCol.b) / 255.0f;
+            for (int i = 0; i < shapeCount; i++)
             {
-                float u = (float)x / (float)w;
-
-                Vec3 pLocal = blLocal + Vec3(pWidth * u, pHeight * v, 0.0f);
-                Vec3 p = camRight * pLocal.x + camUp * pLocal.y + cam.dir * pLocal.z;
-                p.Normalize();
-
-                /*Color hitCol(
-                    (unsigned int)std::max(p.x * 255.0f, 0.0f),
-                    (unsigned int)std::max(p.y * 255.0f, 0.0f),
-                    (unsigned int)std::max(p.z * 255.0f, 0.0f)
-                );*/
-                Color hitCol(10, 10, 10, 0);
-
-                Ray ray(cam.pos, p);
-
-                Hit hit = {};
-                float len = 0.0f;
-                bool hasHitSomething = false;
-
-                /*for (int i = 0; i < cubeCount; i++)
+                Shape* currShape = shapePtrs[i].get();
+                if (currShape->RayIntersect(ray, &hit))
                 {
-                    if (cubes[i].RayIntersect(ray, &hit))
-                    {
-                        if (hasHitSomething && hit.len >= len)
-                            continue;
+                    if (hasHitSomething && hit.len >= len)
+                        continue;
 
-                        hitCol = cubes[i].mat.col;
-                        len = hit.len;
-                        hasHitSomething = true;
-                    }
-                }*/
-
-                for (int i = 0; i < shapeCount; i++)
-                {
-                    Shape *currShape = shapePtrs[i].get();
-                    if (currShape->RayIntersect(ray, &hit))
-                    {
-                        if (hasHitSomething && hit.len >= len)
-                            continue;
-
-                        //hitCol = currShape->mat.col;
-                        hitCol = Color(
-                            (uint8_t)(std::max(hit.normal.x, 0.0f) * 255),
-                            (uint8_t)(std::max(hit.normal.y, 0.0f) * 255), 
-                            (uint8_t)(std::max(hit.normal.z, 0.0f) * 255)
-                        );
-
-                        len = hit.len;
-                        hasHitSomething = true;
-                    }
+                    bestHit = hit;
+                    len = hit.len;
+                    hasHitSomething = true;
                 }
+            }
 
-                img.setPixel(
-                    x, y,
-                    {hitCol.r, hitCol.g, hitCol.b}
-                );
+            Vec3 lighting;
+            if (hasHitSomething)
+            {
+                lighting = Vec3(0.015f, 0.025f, 0.045f);
+
+                hitCol = Vec3(
+                    (float)((Shape*)bestHit.target)->mat.col.r,
+                    (float)((Shape*)bestHit.target)->mat.col.g,
+                    (float)((Shape*)bestHit.target)->mat.col.b
+                ) / 255.0f;
+
+                Shape* hitShape = (Shape*)bestHit.target;
+                Ray lightRay(bestHit.pos, hit.normal);
+
+                for (int i = 0; i < lightCount; i++)
+                {
+                    Light* currLight = lightPtrs[i].get();
+                    Vec3 toLight = currLight->GetRelativePos(bestHit.pos);
+                    toLight.Normalize();
+
+                    if (bestHit.normal.Dot(toLight) <= 0.0f)
+                        continue;
+
+                    float distSqr = currLight->GetDistSqr(bestHit.pos);
+
+                    Ray lightRay(bestHit.pos, toLight);
+                    Hit lightHit = {};
+
+                    bool isBlocked = false;
+                    for (int j = 0; j < shapeCount; j++)
+                    {
+                        Shape* currShape = shapePtrs[j].get();
+                        if (currShape == hitShape)
+                            continue;
+
+                        if (currShape->RayIntersect(lightRay, &lightHit))
+                            if (bestHit.len * bestHit.len < distSqr)
+                                isBlocked = true;
+
+                        if (isBlocked)
+                            break;
+                    }
+
+                    if (isBlocked)
+                        continue;
+
+                    float lightStr = currLight->GetIntensity(lightRay, bestHit.normal);
+
+                    lighting += Vec3(
+                        (float)currLight->col.r,
+                        (float)currLight->col.g,
+                        (float)currLight->col.b
+                    ) / 255.0f * lightStr;
+                }
+            }
+            else
+                lighting = Vec3(sunStr);
+
+            hitCol = Vec3(
+                std::max(0.0f, std::min(hitCol.x, 1.0f)),
+                std::max(0.0f, std::min(hitCol.y, 1.0f)),
+                std::max(0.0f, std::min(hitCol.z, 1.0f))
+            );
+
+            lighting = Vec3(
+                std::max(0.0f, std::min(lighting.x, 1.0f)),
+                std::max(0.0f, std::min(lighting.y, 1.0f)),
+                std::max(0.0f, std::min(lighting.z, 1.0f))
+            );
+            
+            img.setPixel(x, y, {
+                (uint8_t)(hitCol.x * lighting.x * 255.0f), 
+                (uint8_t)(hitCol.y * lighting.y * 255.0f), 
+                (uint8_t)(hitCol.z * lighting.z * 255.0f)
+            });
+
+            ++currPix %= dim;
+        }
+
+
+        for (int y = 2; y < 8; y++)
+        {
+            for (int x = 2; x < 8; x++)
+            {
+                if (dT > 0.09f)
+                    img.setPixel(x, y, {255, 0, 0});
+                else if (dT < 0.07f)
+                    img.setPixel(x, y, {0, 0, 255});
+                else
+                    img.setPixel(x, y, {0, 255, 0});
             }
         }
 
-        sf::Texture tex;
         tex.loadFromImage(img);
-
-        sf::Sprite sprite;
         sprite.setTexture(tex);
-        sprite.setScale((float)scaleW, (float)scaleH);
 
         window.clear();
         window.draw(sprite);

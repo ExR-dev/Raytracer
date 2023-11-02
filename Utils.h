@@ -47,6 +47,10 @@ struct Vec3
         x(x), y(y), z(z)
     {}
 
+    Vec3(float a) :
+        x(a), y(a), z(a)
+    {}
+
 
     Vec3& operator=(const Vec3 v)
     {
@@ -188,10 +192,15 @@ struct Vec3
 
 struct Color
 {
-    uint8_t r, g, b, a;
+    uint8_t r, g, b;
 
-    Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) :
-        r(r), g(g), b(b), a(a)
+
+    Color() :
+        r(0), g(0), b(0)
+    {}
+
+    Color(uint8_t r, uint8_t g, uint8_t b) :
+        r(r), g(g), b(b)
     {}
 };
 
@@ -202,38 +211,5 @@ struct Material
 
     Material(float emission, Color col) :
         emission(emission), col(col)
-    {}
-};
-
-
-struct Ray
-{
-    Vec3 pos, dir;
-
-    Ray(Vec3 pos, Vec3 dir) :
-        pos(pos), dir(dir)
-    {}
-
-    inline Vec3 InverseDir() const
-    {
-        return {
-            1.0f / dir.x, 
-            1.0f / dir.y, 
-            1.0f / dir.z
-        };
-    }
-};
-
-struct Hit
-{
-    float len;
-    Vec3 pos, normal;
-
-    Hit() :
-        len(-1.0f), pos({}), normal({})
-    {}
-
-    Hit(float len, Vec3 pos, Vec3 normal) :
-        len(len), pos(pos), normal(normal)
     {}
 };

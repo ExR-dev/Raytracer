@@ -5,6 +5,42 @@
 #include <iostream>
 
 
+
+struct Ray
+{
+    Vec3 pos, dir;
+
+    Ray(Vec3 pos, Vec3 dir) :
+        pos(pos), dir(dir)
+    {}
+
+    inline Vec3 InverseDir() const
+    {
+        return {
+            1.0f / dir.x,
+            1.0f / dir.y,
+            1.0f / dir.z
+        };
+    }
+};
+
+struct Hit
+{
+    float len;
+    Vec3 pos, normal;
+    void* target;
+
+    Hit() :
+        len(-1.0f), pos({}), normal({}), target(nullptr)
+    {}
+
+    Hit(float len, Vec3 pos, Vec3 normal, void* target) :
+        len(len), pos(pos), normal(normal), target(target)
+    {}
+};
+
+
+
 struct Cam
 {
     float fov;
@@ -18,20 +54,75 @@ struct Cam
 
 struct Light
 {
-    Vec3 pos;
     float intensity;
     Color col;
 
-    Light(Vec3 pos, float intensity, Color col) :
-        pos(pos), intensity(intensity), col(col)
+    Light(float intensity, Color col) :
+        intensity(intensity), col(col)
     {}
+
+    virtual Vec3 GetRelativePos(const Vec3& objPos) const
+    {
+        return Vec3();
+    }
+
+    virtual float GetDistSqr(const Vec3& objPos) const
+    {
+        return 1000000000000.0f;
+    }
+
+    virtual float GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const
+    {
+        return intensity * surfaceNormal.Dot(lightray.dir);
+    }
+};
+
+struct GlobalLight : Light
+{
+    Vec3 normal;
+
+    GlobalLight(Vec3 normal, float intensity, Color col) :
+        Light(intensity, col), normal(normal)
+    {}
+
+    Vec3 GetRelativePos(const Vec3& objPos) const override
+    {
+        return normal * (-1.0f);
+    }
+
+    float GetDistSqr(const Vec3& objPos) const override
+    {
+        return 1000000000000.0f;
+    }
+
+    float GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
+    {
+        return intensity * surfaceNormal.Dot(lightray.dir);
+    }
 };
 
 struct PointLight : Light
 {
+    Vec3 pos;
+
     PointLight(Vec3 pos, float intensity, Color col) :
-        Light(pos, intensity, col)
+        Light(intensity, col), pos(pos)
     {}
+
+    Vec3 GetRelativePos(const Vec3& objPos) const override
+    {
+        return pos - objPos;
+    }
+
+    float GetDistSqr(const Vec3& objPos) const override
+    {
+        return (pos - objPos).MagSqr();
+    }
+
+    float GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
+    {
+        return (intensity / (pos - lightray.pos).MagSqr()) * surfaceNormal.Dot(lightray.dir);
+    }
 };
 
 
@@ -122,7 +213,20 @@ struct Cube : Shape
         {
             hit->len = tmin;
             hit->pos = ray.pos + (ray.dir * tmin);
-            hit->normal = ray.dir * (-1.0f);
+            hit->target = (void*)this;
+
+            if (abs(hit->pos.x - min.x) < 0.000001f)
+                hit->normal = Vec3(-1.0f, 0, 0);
+            else if (abs(hit->pos.x - max.x) < 0.000001f)
+                hit->normal = Vec3(1.0f, 0, 0);
+            else if (abs(hit->pos.y - min.y) < 0.000001f)
+                hit->normal = Vec3(0, -1.0f, 0);
+            else if (abs(hit->pos.y - max.y) < 0.000001f)
+                hit->normal = Vec3(0, 1.0f, 0);
+            else if (abs(hit->pos.z - min.z) < 0.000001f)
+                hit->normal = Vec3(0, 0, -1.0f);
+            else if (abs(hit->pos.z - max.z) < 0.000001f)
+                hit->normal = Vec3(0, 0, 1.0f);
         }
 
         return result;
@@ -150,7 +254,6 @@ struct Sphere : Shape
         if (h < 0.0f) 
             return false;
 
-        //h = sqrt(h);
         h = 1.0f / InverseSqrt(h);
 
         float 
@@ -173,10 +276,9 @@ struct Sphere : Shape
             hit->pos = ray.pos + ray.dir * hit->len;
             hit->normal = hit->pos - pos;
             hit->normal.Normalize();
+            hit->target = (void*)this;
         }
-
         return true;
-        //return vec2(-b - h, -b + h);
     }
 
     /*bool RayIntersect(const Ray& ray, Hit* hit) const override
@@ -265,6 +367,7 @@ struct Tri : Shape
                 hit->pos = ray.pos + ray.dir * t;
                 hit->normal = edge1.Cross(edge2);
                 hit->normal.Normalize();
+                hit->target = (void*)this;
             }
             return true;
         }
@@ -301,6 +404,7 @@ struct Plane : Shape
             hit->len = t;
             hit->pos = ray.pos + ray.dir * t;
             hit->normal = normal;
+            hit->target = (void*)this;
         }
 
         return true;
