@@ -111,9 +111,10 @@ struct GlobalLight : Light
 struct PointLight : Light
 {
     Vec3 pos;
+    float falloff;
 
-    PointLight(Vec3 pos, float intensity, Color col) :
-        Light(intensity, col), pos(pos)
+    PointLight(Vec3 pos, float falloff, float intensity, Color col) :
+        Light(intensity, col), pos(pos), falloff(falloff)
     {}
 
     Vec3 GetRelativePos(const Vec3& objPos) const override

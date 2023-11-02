@@ -1,7 +1,6 @@
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
-//#include <thread>
 #include <cmath>
 #include <omp.h>
 
@@ -20,19 +19,27 @@ int main()
     );
     cam.dir.Normalize();
 
-    //Color sunCol(1.0, 0.92, 0.78);
-    Color sunCol(1.0, 0.9, 0.7);
-    double sunStr = 0.98;
+    //Color sunCol(1.0, 0.9, 0.7);
+    //float sunStr = 0.98f;
+    Color sunCol(0.01, 0.01, 0.01);
+    float sunStr = 0.0;
 
     std::shared_ptr<Light> lightPtrs[] = {
-        std::make_shared<GlobalLight>(GlobalLight(
+        /*std::make_shared<GlobalLight>(GlobalLight(
             {0.5, -1.0, 0.28}, sunStr, sunCol
-        )),
+        )),*/
 
         std::make_shared<PointLight>(PointLight(
-            {3.0, 4.5, -2.0},
-            35.0,
-            {0.0, 0.7, 1.0}
+            {3.3, 1.5, -4.5},
+            0.0f, 5.0f, {1.0, 0.0, 0.0}
+        )),
+        std::make_shared<PointLight>(PointLight(
+            {-1.5, 4.0, 4.0},
+            0.0f, 5.0f, {0.0, 1.0, 0.0}
+        )),
+        std::make_shared<PointLight>(PointLight(
+            {-3.0, 3.0, -2.0},
+            0.0f, 5.0f, {0.0, 0.0, 1.0}
         )),
     };
     int lightCount = sizeof(lightPtrs) / sizeof(std::shared_ptr<Light>);
@@ -40,24 +47,91 @@ int main()
 
     std::shared_ptr<Shape> shapePtrs[] = {
         std::make_shared<Plane>(Plane(
-            {  0.0, 0.0,  0.0 },
-            {  0.0,  1.0,  0.0 },
-            { 0.0f, {0.8, 0.8, 0.8} }
+            { 0.0, 0.0, 0.0 },
+            { 0.0, 1.0, 0.0 },
+            { 0.0f, {.33, .33, .33} }
+        )),
+        std::make_shared<Plane>(Plane(
+            { 0.0, 6.0, 0.0 },
+            { 0.0, -1.0, 0.0 },
+            { 0.0f, {.33, .33, .33} }
+        )),
+
+        std::make_shared<Cube>(Cube(
+            { -0.25,  0.0,  0.5 },
+            { 1.75,  3.0,  3.5 },
+            { 0.0f, {1, 1, 1} }
+        )),
+
+        std::make_shared<Sphere>(Sphere(
+            1.75,
+            { -3.0, 0.75, -0.25 },
+            { 0.0f, {1, 1, 1} }
+        )),
+
+        std::make_shared<Tri>(Tri(
+            {  2.9, 0.0, -4.9 },
+            {  3.0, 2.7, -3.7 },
+            {  2.0, 0.0, -2.0 },
+            { 0.0f, {1, 1, 1} }
+        )),
+        std::make_shared<Tri>(Tri(
+            {  3.0, 2.7, -3.7 },
+            { -1.2, 0.0, -4.7 },
+            {  2.0, 0.0, -2.0 },
+            { 0.0f, {1, 1, 1} }
+        )),
+        std::make_shared<Tri>(Tri(
+            { -1.2, 0.0, -4.7 },
+            {  3.0, 2.7, -3.7 },
+            {  2.9, 0.0, -4.9 },
+            { 0.0f, {1, 1, 1} }
+        )),
+
+        /*std::make_shared<Plane>(Plane(
+            { 0.0, 0.0, 0.0 },
+            { 0.0, 1.0, 0.0 },
+            { 0.0f, {.5, .5, .5} }
+        )),
+        std::make_shared<Plane>(Plane(
+            { 0.0, 6.0, 0.0 },
+            { 0.0, -1.0, 0.0 },
+            { 0.0f, {.5, .5, .5} }
         )),
 
         
         std::make_shared<Cube>(Cube(
-            { -0.25,  -1.0, -1.0 },
-            {  0.25,  4.5,  5.0 },
-            { 0.0f, {0.4, 0.25, 0.55} }
+            { -0.25,  0.0,  0.5 },
+            { 1.75,  3.0,  3.5 },
+            { 0.0f, {0.4, 0.25, 1.0} }
         )),
 
 
         std::make_shared<Sphere>(Sphere(
-            1.0,
-            { -2.5, 1.0, 0.0 },
-            { 0.0f, {0.45, 0.8, 0.2} }
+            1.75,
+            { -3.0, 0.75, -0.25 },
+            { 0.0f, {0.3, 1.0, 0.15} }
         )),
+
+
+        std::make_shared<Tri>(Tri(
+            {  2.9, 0.0, -4.9 },
+            {  2.0, 2.7, -4.2 },
+            {  2.0, 0.0, -2.0 },
+            { 0.0f, {1.0, 0.3, 0.2} }
+        )),
+        std::make_shared<Tri>(Tri(
+            {  2.0, 2.7, -4.2 },
+            { -1.2, 0.0, -4.7 },
+            {  2.0, 0.0, -2.0 },
+            { 0.0f, {1.0, 0.3, 0.2} }
+        )),
+        std::make_shared<Tri>(Tri(
+            { -1.2, 0.0, -4.7 },
+            {  2.0, 2.7, -4.2 },
+            {  2.9, 0.0, -4.9 },
+            { 0.0f, {1.0, 0.3, 0.2} }
+        )),*/
 
         /*std::make_shared<Sphere>(Sphere(
             0.8,
@@ -256,11 +330,15 @@ int main()
 
         Vec3 blLocal(-pWidth / 2.0f, -pHeight / 2.0f, 1.0f);
 
-        for (int i = 0; i < scanSpeed; i++)
+        int drawStart = currPix;
+        int drawEnd = std::min(dim,currPix + scanSpeed);
+
+        #pragma omp parallel for num_threads(6)
+        for (int i = drawStart; i < drawEnd; i++)
         {
             unsigned int
-                x = currPix % w,
-                y = currPix / w;
+                x = i % w,
+                y = i / w;
 
             float
                 v = 1.0f - (float)y / (float)h,
@@ -279,9 +357,9 @@ int main()
             bool hasHitSomething = false;
 
             Vec3 hitCol = Vec3(sunCol.r, sunCol.g, sunCol.b);
-            for (int i = 0; i < shapeCount; i++)
+            for (int j = 0; j < shapeCount; j++)
             {
-                Shape* currShape = shapePtrs[i].get();
+                Shape* currShape = shapePtrs[j].get();
                 if (currShape->RayIntersect(ray, &hit))
                 {
                     if (hasHitSomething && hit.len >= len)
@@ -296,7 +374,8 @@ int main()
             Vec3 lighting;
             if (hasHitSomething)
             {
-                lighting = Vec3(0.015f, 0.025f, 0.045f);
+                //lighting = Vec3(0.025f, 0.045f, 0.08f);
+                lighting = Vec3(0.01f, 0.01f, 0.01f);
 
                 hitCol = Vec3(
                     ((Shape*)bestHit.target)->mat.col.r,
@@ -307,9 +386,9 @@ int main()
                 Shape* hitShape = (Shape*)bestHit.target;
                 Ray lightRay(bestHit.pos, hit.normal);
 
-                for (int i = 0; i < lightCount; i++)
+                for (int j = 0; j < lightCount; j++)
                 {
-                    Light* currLight = lightPtrs[i].get();
+                    Light* currLight = lightPtrs[j].get();
                     Vec3 toLight = currLight->GetRelativePos(bestHit.pos);
                     toLight.Normalize();
 
@@ -322,9 +401,9 @@ int main()
                     Hit lightHit = {};
 
                     bool isBlocked = false;
-                    for (int j = 0; j < shapeCount; j++)
+                    for (int k = 0; k < shapeCount; k++)
                     {
-                        Shape* currShape = shapePtrs[j].get();
+                        Shape* currShape = shapePtrs[k].get();
                         if (currShape == hitShape)
                             continue;
 
@@ -368,9 +447,8 @@ int main()
                 (uint8_t)(hitCol.y * lighting.y * 255.0), 
                 (uint8_t)(hitCol.z * lighting.z * 255.0)
             });
-
-            ++currPix %= dim;
         }
+        currPix = drawEnd % dim;
 
 
         /*Vec3 spCPoint = Vec3(9.5, 9.5, 0.0);

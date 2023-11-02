@@ -601,6 +601,11 @@ struct Color
         g(std::max(0.0f, std::min((float)g, 1.0f))),
         b(std::max(0.0f, std::min((float)b, 1.0f)))
     {}
+    Color(int r, int g, int b) :
+        r(std::max(0.0f, std::min((float)r, 1.0f))), 
+        g(std::max(0.0f, std::min((float)g, 1.0f))),
+        b(std::max(0.0f, std::min((float)b, 1.0f)))
+    {}
 };
 
 struct Material
