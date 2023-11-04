@@ -7,6 +7,157 @@
 #include "Utils.h"
 #include "Primitives.h"
 
+struct Scene
+{
+    bool disableLighting;
+
+    int maxBounces;
+    int raySplits;
+
+    Color sunCol;
+    float sunStr;
+
+    std::shared_ptr<Light>* lightPtrs;
+    int lightCount;
+
+    std::shared_ptr<Shape>* shapePtrs;
+    int shapeCount;
+
+    Scene(int maxBounces, int raySplits, Color sunCol, float sunStr) :
+        maxBounces(maxBounces), raySplits(raySplits), sunCol(sunCol), sunStr(sunStr),
+        lightPtrs(nullptr), lightCount(0), 
+        shapePtrs(nullptr), shapeCount(0)
+    {
+        disableLighting = true;
+    }
+};
+
+
+
+Vec3 CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce)
+{
+    Hit bestHit = {};
+
+    float len = 0.0f;
+    bool hasHitSomething = false;
+
+    Vec3 hitCol = Vec3(scene.sunCol.r, scene.sunCol.g, scene.sunCol.b);
+    for (int j = 0; j < scene.shapeCount; j++)
+    {
+        Shape* currShape = scene.shapePtrs[j].get();
+
+        if (hit.target != nullptr)
+            if (((Shape*)hit.target) == currShape)
+                continue;
+
+        if (currShape->RayIntersect(ray, &hit))
+        {
+            if (hasHitSomething && hit.len >= len)
+                continue;
+
+            bestHit = hit;
+            len = hit.len;
+            hasHitSomething = true;
+        }
+    }
+
+    Vec3 lighting = Vec3(0);
+    if (hasHitSomething)
+    {
+        hitCol = Vec3(
+            ((Shape*)bestHit.target)->mat.col.r,
+            ((Shape*)bestHit.target)->mat.col.g,
+            ((Shape*)bestHit.target)->mat.col.b
+        );
+
+        if (scene.disableLighting)
+        {
+            lighting = Vec3(1.0, 1.0, 1.0);
+            goto endHit;
+        }
+
+        lighting = hitCol * ((Shape*)bestHit.target)->mat.emission;
+
+        Shape* hitShape = (Shape*)bestHit.target;
+        Ray lightRay(bestHit.pos, hit.normal);
+
+        for (int j = 0; j < scene.lightCount; j++)
+        {
+            Light* currLight = scene.lightPtrs[j].get();
+            Vec3 toLight = currLight->GetRelativePos(bestHit.pos);
+            toLight.Normalize();
+
+            if (bestHit.normal.Dot(toLight) <= 0)
+                continue;
+
+            float distSqr = currLight->GetDistSqr(bestHit.pos);
+
+            Ray lightRay(bestHit.pos, toLight);
+            Hit lightHit = {};
+
+            bool isBlocked = false;
+            for (int k = 0; k < scene.shapeCount; k++)
+            {
+                Shape* currShape = scene.shapePtrs[k].get();
+                if (currShape == hitShape)
+                    continue;
+
+                if (currShape->RayIntersect(lightRay, &lightHit))
+                    if ((lightHit.len * lightHit.len) < distSqr)
+                        isBlocked = true;
+
+                if (isBlocked)
+                    break;
+            }
+
+            if (isBlocked)
+                continue;
+
+            float lightStr = currLight->GetIntensity(lightRay, bestHit.normal);
+
+            lighting += Vec3(
+                currLight->col.r,
+                currLight->col.g,
+                currLight->col.b
+            ) * lightStr;
+        }
+
+        if (bounce < scene.maxBounces)
+        {
+            for (int i = 0; i < scene.raySplits; i++)
+            {
+                Vec3 randDir = RandDir();
+
+                if (bestHit.normal.Dot(randDir) <= 0)
+                    randDir *= -1.0f;
+
+                Ray randRay(bestHit.pos, randDir);
+                Hit randHit = {};
+
+                Vec3 outCol = CastRayInScene(scene, randRay, randHit, bounce + 1);
+
+                if (randHit.target != nullptr)
+                {
+                    lighting += (outCol * 1.00f / (scene.raySplits)) * (1.0f / ((bestHit.pos - randHit.pos).MagSqr() + 1.0f)) * bestHit.normal.Dot(randDir)
+                        * randHit.normal.Dot((randDir * -1.0f)); // This bit is experimental.
+
+                    //lighting += (outCol * 0.1f / (scene.raySplits * scene.maxBounces)) * bestHit.normal.Dot(randDir) * randHit.normal.Dot((randDir * -1.0f)); // This bit is experimental.
+                }
+            }
+        }
+    }
+    else
+        lighting = (Vec3)scene.sunCol * scene.sunStr;
+
+endHit:
+    hit = bestHit;
+    return hitCol = Vec3(
+        std::max(0.0f, std::min(hitCol.x * lighting.x, 1.0f)),
+        std::max(0.0f, std::min(hitCol.y * lighting.y, 1.0f)),
+        std::max(0.0f, std::min(hitCol.z * lighting.z, 1.0f))
+    );
+}
+
 
 
 int main()
@@ -17,14 +168,17 @@ int main()
         { 0.0, 1.0, -3.0 },
         { 0.0, 0.0, 1.0 }
     );
-    cam.dir.Normalize();
 
-    //Color sunCol(1.0, 0.9, 0.7);
-    //float sunStr = 0.98f;
-    Color sunCol(0.01, 0.01, 0.01);
+    //Color sunCol(0.01, 0.01, 0.01);
+    Color sunCol(0, 0, 0);
     float sunStr = 0.0;
 
     std::shared_ptr<Light> lightPtrs[] = {
+        /*std::make_shared<GlobalLight>(GlobalLight(
+            Vec3(0), 0, Color()
+        )),*/
+
+
         /*std::make_shared<GlobalLight>(GlobalLight(
             {0.5, -1.0, 0.28}, sunStr, sunCol
         )),*/
@@ -44,130 +198,65 @@ int main()
     };
     int lightCount = sizeof(lightPtrs) / sizeof(std::shared_ptr<Light>);
 
-
     std::shared_ptr<Shape> shapePtrs[] = {
         std::make_shared<Plane>(Plane(
             { 0.0, 0.0, 0.0 },
             { 0.0, 1.0, 0.0 },
-            { 0.0f, {.33, .33, .33} }
+            { 0.0f, {1, 1, 1} }
         )),
         std::make_shared<Plane>(Plane(
             { 0.0, 6.0, 0.0 },
             { 0.0, -1.0, 0.0 },
-            { 0.0f, {.33, .33, .33} }
+            { 0.0f, {.25, .25, .25} }
         )),
 
         std::make_shared<Cube>(Cube(
             { -0.25,  0.0,  0.5 },
             { 1.75,  3.0,  3.5 },
-            { 0.0f, {1, 1, 1} }
+            { 0.0f, {1, 0, 0} }
         )),
 
         std::make_shared<Sphere>(Sphere(
             1.75,
             { -3.0, 0.75, -0.25 },
-            { 0.0f, {1, 1, 1} }
+            { 0.0f, {0, 1, 0} }
         )),
 
         std::make_shared<Tri>(Tri(
             {  2.9, 0.0, -4.9 },
             {  3.0, 2.7, -3.7 },
             {  2.0, 0.0, -2.0 },
-            { 0.0f, {1, 1, 1} }
+            { 0.0f, {0, 1, 1} }
         )),
         std::make_shared<Tri>(Tri(
             {  3.0, 2.7, -3.7 },
             { -1.2, 0.0, -4.7 },
             {  2.0, 0.0, -2.0 },
-            { 0.0f, {1, 1, 1} }
+            { 0.0f, {1, 1, 0} }
         )),
         std::make_shared<Tri>(Tri(
             { -1.2, 0.0, -4.7 },
             {  3.0, 2.7, -3.7 },
             {  2.9, 0.0, -4.9 },
-            { 0.0f, {1, 1, 1} }
+            { 0.0f, {1, 0, 1} }
         )),
-
-        /*std::make_shared<Plane>(Plane(
-            { 0.0, 0.0, 0.0 },
-            { 0.0, 1.0, 0.0 },
-            { 0.0f, {.5, .5, .5} }
-        )),
-        std::make_shared<Plane>(Plane(
-            { 0.0, 6.0, 0.0 },
-            { 0.0, -1.0, 0.0 },
-            { 0.0f, {.5, .5, .5} }
-        )),
-
-        
-        std::make_shared<Cube>(Cube(
-            { -0.25,  0.0,  0.5 },
-            { 1.75,  3.0,  3.5 },
-            { 0.0f, {0.4, 0.25, 1.0} }
-        )),
-
-
-        std::make_shared<Sphere>(Sphere(
-            1.75,
-            { -3.0, 0.75, -0.25 },
-            { 0.0f, {0.3, 1.0, 0.15} }
-        )),
-
-
-        std::make_shared<Tri>(Tri(
-            {  2.9, 0.0, -4.9 },
-            {  2.0, 2.7, -4.2 },
-            {  2.0, 0.0, -2.0 },
-            { 0.0f, {1.0, 0.3, 0.2} }
-        )),
-        std::make_shared<Tri>(Tri(
-            {  2.0, 2.7, -4.2 },
-            { -1.2, 0.0, -4.7 },
-            {  2.0, 0.0, -2.0 },
-            { 0.0f, {1.0, 0.3, 0.2} }
-        )),
-        std::make_shared<Tri>(Tri(
-            { -1.2, 0.0, -4.7 },
-            {  2.0, 2.7, -4.2 },
-            {  2.9, 0.0, -4.9 },
-            { 0.0f, {1.0, 0.3, 0.2} }
-        )),*/
-
-        /*std::make_shared<Sphere>(Sphere(
-            0.8,
-            { -4.0, 0.1, 0.0 },
-            { 0.0f, {0.12, 0.2, 0.4} }
-        )),
-        
-
-        std::make_shared<Tri>(Tri(
-            {  4.50,  2.4, -0.6 },
-            {  5.5,   1.8, -0.7 },
-            {  4.75,  2.2,  0.8 },
-            { 0.0f, {0.35, 0.35, 1.0} }
-        )),
-        
-        std::make_shared<Tri>(Tri(
-            { 4.5, 2.4, -0.6 },
-            { 5.0, 0.8, -0.7 },
-            { 4.75, 2.2,  0.8 },
-            { 0.0f, {1.0, 1.0, 0.35} }
-        )),
-        
-        std::make_shared<Tri>(Tri(
-            { 4.50, 2.4, -0.6 },
-            { 5.5, 1.8, -0.7 },
-            { 5.0, 0.8, -0.7 },
-            { 0.0f, {1.0, 0.35, 1.0} }
-        )),*/
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(std::shared_ptr<Shape>);
 
 
+    Scene scene(2, 2, sunCol, sunStr);
+
+    scene.lightPtrs = lightPtrs;
+    scene.lightCount = lightCount;
+
+    scene.shapePtrs = shapePtrs;
+    scene.shapeCount = shapeCount;
+
+
     // Render Scene
     const unsigned int 
-        w = 640,
-        h = 360,
+        w = 320,
+        h = 180,
         dim = w * h;
 
     sf::RenderWindow window(
@@ -184,11 +273,6 @@ int main()
         scaleW = (float)sW / (float)w,
         scaleH = (float)sH / (float)h;
 
-    Vec3 camRight = cam.dir.Cross({0.0f, -1.0f, 0.0f});
-    camRight.Normalize();
-
-    Vec3 camUp = cam.dir.Cross(camRight);
-    camUp.Normalize();
 
     bool disableScanSpeed = false;
     unsigned int scanSpeed = dim / 8;
@@ -242,6 +326,7 @@ int main()
                 scanSpeed += w * 4;
 
             scanSpeed = std::max(1u, std::min(scanSpeed, dim));
+            scanSpeed = w / 2;
         }
 
 
@@ -257,6 +342,12 @@ int main()
                 if (event.mouseWheelScroll.delta != 0.0f)
                     cam.fov -= event.mouseWheelScroll.delta;
             }
+
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::L)
+                    scene.disableLighting = !scene.disableLighting;
+            }
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
@@ -265,19 +356,19 @@ int main()
         if (giveControl)
         {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-                cam.pos += cam.dir * 4.0f * dT;
+                cam.pos += cam.fwd * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-                cam.pos -= cam.dir * 4.0f * dT;
+                cam.pos -= cam.fwd * 4.0f * dT;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-                cam.pos += camRight * 4.0f * dT;
+                cam.pos += cam.right * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-                cam.pos -= camRight * 4.0f * dT;
+                cam.pos -= cam.right * 4.0f * dT;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
-                cam.pos += camUp * 4.0f * dT;
+                cam.pos += cam.up * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
-                cam.pos -= camUp * 4.0f * dT;
+                cam.pos -= cam.up * 4.0f * dT;
 
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Tab))
@@ -299,30 +390,25 @@ int main()
             {
                 float sign = (float)deltas.y * -0.001f;
 
-                cam.dir = (
-                    cam.dir * cos(sign) +
-                    camRight.Cross(cam.dir) * sin(sign) +
-                    camRight * camRight.Dot(cam.dir) * (1.0f - cos(sign))
+                cam.fwd = (
+                    cam.fwd * cos(sign) +
+                    cam.right.Cross(cam.fwd) * sin(sign) +
+                    cam.right * cam.right.Dot(cam.fwd) * (1.0f - cos(sign))
                     );
             }
             if (deltas.x != 0)
             {
                 float sign = (float)deltas.x * -0.001f;
 
-                cam.dir = {
-                    cam.dir.x * cos(sign) + cam.dir.z * sin(sign),
-                    cam.dir.y,
-                    -cam.dir.x * sin(sign) + cam.dir.z * cos(sign)
+                cam.fwd = {
+                    cam.fwd.x * cos(sign) + cam.fwd.z * sin(sign),
+                    cam.fwd.y,
+                    -cam.fwd.x * sin(sign) + cam.fwd.z * cos(sign)
                 };
             }
+
+            cam.UpdateRotation();
         }
-        
-
-        camRight = cam.dir.Cross({0.0f, -1.0f, 0.0f});
-        camRight.Normalize();
-
-        camUp = cam.dir.Cross(camRight);
-        camUp.Normalize();
 
         float
             pHeight = tan((float)(cam.fov / 2.0f) * PI / 180.0f) * 2.0f,
@@ -333,7 +419,7 @@ int main()
         int drawStart = currPix;
         int drawEnd = std::min(dim,currPix + scanSpeed);
 
-        #pragma omp parallel for num_threads(6)
+        #pragma omp parallel for num_threads(4)
         for (int i = drawStart; i < drawEnd; i++)
         {
             unsigned int
@@ -345,107 +431,18 @@ int main()
                 u = (float)x / (float)w;
 
             Vec3 pLocal = blLocal + Vec3(pWidth * u, pHeight * v, 0.0f);
-            Vec3 p = camRight * pLocal.x + camUp * pLocal.y + cam.dir * pLocal.z;
+            Vec3 p = cam.right * pLocal.x + cam.up * pLocal.y + cam.fwd * pLocal.z;
             p.Normalize();
 
             Ray ray(cam.pos, p);
-            Hit 
-                bestHit = {},
-                hit = {};
+            Hit hit = {};
 
-            float len = 0.0f;
-            bool hasHitSomething = false;
-
-            Vec3 hitCol = Vec3(sunCol.r, sunCol.g, sunCol.b);
-            for (int j = 0; j < shapeCount; j++)
-            {
-                Shape* currShape = shapePtrs[j].get();
-                if (currShape->RayIntersect(ray, &hit))
-                {
-                    if (hasHitSomething && hit.len >= len)
-                        continue;
-
-                    bestHit = hit;
-                    len = hit.len;
-                    hasHitSomething = true;
-                }
-            }
-
-            Vec3 lighting;
-            if (hasHitSomething)
-            {
-                //lighting = Vec3(0.025f, 0.045f, 0.08f);
-                lighting = Vec3(0.01f, 0.01f, 0.01f);
-
-                hitCol = Vec3(
-                    ((Shape*)bestHit.target)->mat.col.r,
-                    ((Shape*)bestHit.target)->mat.col.g,
-                    ((Shape*)bestHit.target)->mat.col.b
-                );
-
-                Shape* hitShape = (Shape*)bestHit.target;
-                Ray lightRay(bestHit.pos, hit.normal);
-
-                for (int j = 0; j < lightCount; j++)
-                {
-                    Light* currLight = lightPtrs[j].get();
-                    Vec3 toLight = currLight->GetRelativePos(bestHit.pos);
-                    toLight.Normalize();
-
-                    if (bestHit.normal.Dot(toLight) <= 0)
-                        continue;
-
-                    float distSqr = currLight->GetDistSqr(bestHit.pos);
-
-                    Ray lightRay(bestHit.pos, toLight);
-                    Hit lightHit = {};
-
-                    bool isBlocked = false;
-                    for (int k = 0; k < shapeCount; k++)
-                    {
-                        Shape* currShape = shapePtrs[k].get();
-                        if (currShape == hitShape)
-                            continue;
-
-                        if (currShape->RayIntersect(lightRay, &lightHit))
-                            if ((lightHit.len * lightHit.len) < distSqr)
-                                isBlocked = true;
-
-                        if (isBlocked)
-                            break;
-                    }
-
-                    if (isBlocked)
-                        continue;
-
-                    float lightStr = currLight->GetIntensity(lightRay, bestHit.normal);
-
-                    lighting += Vec3(
-                        currLight->col.r,
-                        currLight->col.g,
-                        currLight->col.b
-                    ) * lightStr;
-                }
-            }
-            else
-                lighting = Vec3(sunStr);
-
-            hitCol = Vec3(
-                std::max(0.0f, std::min(hitCol.x, 1.0f)),
-                std::max(0.0f, std::min(hitCol.y, 1.0f)),
-                std::max(0.0f, std::min(hitCol.z, 1.0f))
-            );
-
-            lighting = Vec3(
-                std::max(0.0f, std::min(lighting.x, 1.0f)),
-                std::max(0.0f, std::min(lighting.y, 1.0f)),
-                std::max(0.0f, std::min(lighting.z, 1.0f))
-            );
+            Vec3 hitCol = CastRayInScene(scene, ray, hit, 0);
             
             img.setPixel(x, y, {
-                (uint8_t)(hitCol.x * lighting.x * 255.0), 
-                (uint8_t)(hitCol.y * lighting.y * 255.0), 
-                (uint8_t)(hitCol.z * lighting.z * 255.0)
+                (uint8_t)(hitCol.x * 255.0), 
+                (uint8_t)(hitCol.y * 255.0), 
+                (uint8_t)(hitCol.z * 255.0)
             });
         }
         currPix = drawEnd % dim;
@@ -455,8 +452,8 @@ int main()
         float axisLength = 8.0f;
 
         double
-            camPitch = asin(-cam.dir.y),
-            camYaw = atan2(cam.dir.x, cam.dir.z);
+            camPitch = asin(-cam.fwd.y),
+            camYaw = atan2(cam.fwd.x, cam.fwd.z);
 
         double D2R = PI / 180.0;
         double yScale = 1.0 / tan(D2R * cam.fov / 2.0);
@@ -471,10 +468,10 @@ int main()
         Matrix4x4 rotationMat = identity.Rotate(Vec3(camPitch, camYaw, 0.0));
         Matrix4x4 rotationMat = identity.Rotate(Vec3(0.0, -camPitch, -camYaw));
 
-        Matrix4x4 camBase = Matrix4x4(camRight, camUp, cam.dir);
+        Matrix4x4 camBase = Matrix4x4(camRight, camUp, cam.fwd);
         Matrix4x4 camBaseRot = camBase.Rotate(Vec3(0.0, -camPitch, -camYaw));
 
-        Vec3 eAngles = camBase.GetEulerAngles(cam.dir);
+        Vec3 eAngles = camBase.GetEulerAngles(cam.fwd);
         eAngles *= -1;
         std::cout << "(x: " << eAngles.x << ", y: " << eAngles.y << ", z: " << eAngles.z << ")\n";
 

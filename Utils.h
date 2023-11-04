@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <random>
 
 
 constexpr double PI = 3.141592653;
@@ -191,6 +192,25 @@ struct Vec3
         };
     }
 };
+
+
+Vec3 RandVec()
+{
+    static std::mt19937 twister(std::time(0));
+    static std::uniform_real_distribution<double> distr(-1000, 1000);
+    return Vec3(distr(twister), distr(twister), distr(twister));
+}
+
+Vec3 RandDir()
+{
+    Vec3 v = RandVec();
+    double m = v.Mag();
+
+    if (m > MINVAL) 
+        return v / m;
+    else 
+        return RandDir();
+}
 
 /*
 struct Vec4
@@ -606,6 +626,13 @@ struct Color
         g(std::max(0.0f, std::min((float)g, 1.0f))),
         b(std::max(0.0f, std::min((float)b, 1.0f)))
     {}
+
+
+    operator Vec3() const
+    {
+        return Vec3(r, g, b);
+    }
+
 };
 
 struct Material

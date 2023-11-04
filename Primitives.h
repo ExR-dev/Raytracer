@@ -47,12 +47,26 @@ struct Hit
 struct Cam
 {
     float fov;
-    Vec3 pos, dir;
+    Vec3 
+        pos, 
+        fwd, right, up;
 
-    Cam(float fov, Vec3 pos, Vec3 dir) :
-        fov(fov), pos(pos), dir(dir)
+
+    Cam(float fov, Vec3 pos, Vec3 fwd) :
+        fov(fov), pos(pos), fwd(fwd)
     {
-        this->dir.Normalize();
+        UpdateRotation();
+    }
+
+
+    void UpdateRotation()
+    {
+        right = fwd.Cross({0, -1, 0});
+        up = fwd.Cross(right);
+
+        fwd.Normalize();
+        right.Normalize();
+        up.Normalize();
     }
 };
 
@@ -269,6 +283,11 @@ struct Tri : Shape
 
         edge1 = v1 - v0;
         edge2 = v2 - v0;
+
+        Vec3 kk = edge1.Cross(edge2);
+        if (kk.Dot(ray.dir) >= 0)
+            return false;
+
         h = ray.dir.Cross(edge2);
         a = edge1.Dot(h);
 
