@@ -4,10 +4,12 @@
 #include <cmath>
 #include <random>
 
+#define VecNum double
 
 constexpr double PI = 3.141592653;
 constexpr double MINVAL = 0.00001;
 constexpr double MAXVAL = 1000000000.0;
+
 
 
 inline float InverseSqrt(float number)
@@ -36,31 +38,34 @@ inline double InverseSqrt(double number)
     return y;
 }
 
-float Lerp(float p0, float p1, float t)
+VecNum Lerp(VecNum p0, VecNum p1, VecNum t)
 {
-    return (1.0f - t) * p0 + t * p1;
+    return (1.0 - t) * p0 + t * p1;
+}
+
+VecNum RandNum()
+{
+    static std::mt19937 twister(std::time(0));
+    static std::uniform_real_distribution<VecNum> distr(0, 1);
+    return distr(twister);
 }
 
 
 struct Vec3
 {
-    float x, y, z;
-
+    VecNum x, y, z;
 
     Vec3() :
         x(0), y(0), z(0)
     {}
-    Vec3(float a) :
-        x(a), y(a), z(a)
-    {}
     Vec3(float x, float y, float z) :
-        x(x), y(y), z(z)
+        x((VecNum)x), y((VecNum)y), z((VecNum)z)
     {}
     Vec3(double x, double y, double z) :
-        x((float)x), y((float)y), z((float)z)
+        x((VecNum)x), y((VecNum)y), z((VecNum)z)
     {}
     Vec3(int x, int y, int z) :
-        x((float)x), y((float)y), z((float)z)
+        x((VecNum)x), y((VecNum)y), z((VecNum)z)
     {}
 
     Vec3& operator=(const Vec3 v)
@@ -89,11 +94,11 @@ struct Vec3
         y += v.y;
         z += v.z;
     }
-    Vec3 operator+(float a) const
+    Vec3 operator+(VecNum a) const
     {
         return {x + a, y + a, z + a};
     }
-    void operator+=(float a)
+    void operator+=(VecNum a)
     {
         x += a;
         y += a;
@@ -111,11 +116,11 @@ struct Vec3
         z -= v.z;
     }
 
-    Vec3 operator-(float a) const
+    Vec3 operator-(VecNum a) const
     {
         return {x - a, y - a, z - a};
     }
-    void operator-=(float a)
+    void operator-=(VecNum a)
     {
         x -= a;
         y -= a;
@@ -126,22 +131,22 @@ struct Vec3
     {
         return {x * v.x, y * v.y, z * v.z};
     }
-    Vec3 operator*(float a) const
+    Vec3 operator*(VecNum a) const
     {
         return {x * a, y * a, z * a};
     }
-    void operator*=(float a)
+    void operator*=(VecNum a)
     {
         x *= a;
         y *= a;
         z *= a;
     }
 
-    Vec3 operator/(float a) const
+    Vec3 operator/(VecNum a) const
     {
         return {x / a, y / a, z / a};
     }
-    void operator/=(float a)
+    void operator/=(VecNum a)
     {
         x /= a;
         y /= a;
@@ -149,11 +154,11 @@ struct Vec3
     }
 
 
-    inline float MagSqr() const
+    inline VecNum MagSqr() const
     {
         return (x*x + y*y + z*z);
     }
-    inline float Mag() const
+    inline VecNum Mag() const
     {
         return sqrt(MagSqr());
     }
@@ -163,7 +168,7 @@ struct Vec3
         return *(this);
     }
 
-    inline float Dot(const Vec3 v) const
+    inline VecNum Dot(const Vec3 v) const
     {
         return (x * v.x) + (y * v.y) + (z * v.z);
     }
@@ -183,7 +188,7 @@ struct Vec3
            std::abs(z)
         };
     }
-    inline Vec3 VLerp(const Vec3 v, float t) const
+    inline Vec3 VLerp(const Vec3 v, VecNum t) const
     {
         return {
             Lerp(x, v.x, t),
@@ -191,20 +196,41 @@ struct Vec3
             Lerp(z, v.z, t)
         };
     }
+
+    inline Vec3 Reflect(const Vec3 normal) const
+    {
+        Vec3 r = *this - normal * (Dot(normal) * 2.0);
+
+        return r;
+    }
 };
 
 
 Vec3 RandVec()
 {
     static std::mt19937 twister(std::time(0));
-    static std::uniform_real_distribution<double> distr(-1000, 1000);
+    static std::uniform_real_distribution<VecNum> distr(-1000, 1000);
     return Vec3(distr(twister), distr(twister), distr(twister));
 }
 
 Vec3 RandDir()
 {
-    Vec3 v = RandVec();
-    double m = v.Mag();
+    Vec3 v = Vec3(
+        RandNum() * 2.0 - 1.0,
+        RandNum() * 2.0 - 1.0,
+        RandNum() * 2.0 - 1.0
+    );
+
+    while (v.MagSqr() > 1.0)
+    {
+        v = Vec3(
+            RandNum() * 2.0 - 1.0,
+            RandNum() * 2.0 - 1.0,
+            RandNum() * 2.0 - 1.0
+        );
+    }
+
+    VecNum m = v.Mag();
 
     if (m > MINVAL) 
         return v / m;
@@ -606,25 +632,19 @@ const Matrix4x4 identity = Matrix4x4(1.0, 1.0, 1.0, 1.0);
 
 struct Color
 {
-    float r, g, b;
+    VecNum r, g, b;
 
     Color() :
-        r(0.0f), g(0.0f), b(0.0f)
+        r(0), g(0), b(0)
     {}
     Color(float r, float g, float b) :
-        r(std::max(0.0f, std::min(r, 1.0f))), 
-        g(std::max(0.0f, std::min(g, 1.0f))),
-        b(std::max(0.0f, std::min(b, 1.0f)))
+        r((VecNum)r), g((VecNum)g), b((VecNum)b)
     {}
     Color(double r, double g, double b) :
-        r(std::max(0.0f, std::min((float)r, 1.0f))), 
-        g(std::max(0.0f, std::min((float)g, 1.0f))),
-        b(std::max(0.0f, std::min((float)b, 1.0f)))
+        r((VecNum)r), g((VecNum)g), b((VecNum)b)
     {}
     Color(int r, int g, int b) :
-        r(std::max(0.0f, std::min((float)r, 1.0f))), 
-        g(std::max(0.0f, std::min((float)g, 1.0f))),
-        b(std::max(0.0f, std::min((float)b, 1.0f)))
+        r((VecNum)r), g((VecNum)g), b((VecNum)b)
     {}
 
 
@@ -633,14 +653,183 @@ struct Color
         return Vec3(r, g, b);
     }
 
+    Color& operator=(const Color c)
+    {
+        r = c.r;
+        g = c.g;
+        b = c.b;
+        return *this;
+    }
+    bool operator==(const Color c) const
+    {
+        return (
+            r == c.r && 
+            g == c.g && 
+            b == c.b
+        );
+    }
+    bool operator!=(const Color c) const
+    {
+        return !(*this == c);
+    }
+    Color operator+(const Color c) const
+    {
+        return {
+            r + c.r, 
+            g + c.g, 
+            b + c.b
+        };
+    }
+    void operator+=(const Color c)
+    {
+        r += c.r;
+        g += c.g;
+        b += c.b;
+    }
+    Color operator+(VecNum a) const
+    {
+        return {
+            r + a, 
+            g + a, 
+            b + a
+        };
+    }
+    void operator+=(VecNum a)
+    {
+        r += a;
+        g += a;
+        b += a;
+    }
+    Color operator-(const Color c) const
+    {
+        return {
+            r - c.r, 
+            g - c.g, 
+            b - c.b
+        };
+    }
+    void operator-=(const Color c)
+    {
+        r -= c.r;
+        g -= c.g;
+        b -= c.b;
+    }
+    Color operator-(VecNum a) const
+    {
+        return {
+            r - a, 
+            g - a, 
+            b - a
+        };
+    }
+    void operator-=(VecNum a)
+    {
+        r -= a;
+        g -= a;
+        b -= a;
+    }
+    Color operator*(const Color c) const
+    {
+        return {
+            r * c.r, 
+            g * c.g, 
+            b * c.b
+        };
+    }
+    Color operator*(VecNum a) const
+    {
+        return {
+            r * a, 
+            g * a, 
+            b * a
+        };
+    }
+    void operator*=(VecNum a)
+    {
+        r *= a;
+        g *= a;
+        b *= a;
+    }
+    Color operator/(VecNum a) const
+    {
+        return {
+            r / a, 
+            g / a, 
+            b / a
+        };
+    }
+    void operator/=(VecNum a)
+    {
+        r /= a;
+        g /= a;
+        b /= a;
+    }
+
+    Color& Max()
+    {
+        r = std::max(0.0, r);
+        g = std::max(0.0, g);
+        b = std::max(0.0, b);
+        return *this;
+    }
+    Color& Min()
+    {
+        r = std::min(1.0, r);
+        g = std::min(1.0, g);
+        b = std::min(1.0, b);
+        return *this;
+    }
+    Color& Clamp()
+    {
+        r = std::max(0.0, std::min(r, 1.0));
+        g = std::max(0.0, std::min(g, 1.0));
+        b = std::max(0.0, std::min(b, 1.0));
+        return *this;
+    }
+    Color Clamped() const
+    {
+        return {
+            std::max(0.0, std::min(r, 1.0)),
+            std::max(0.0, std::min(g, 1.0)),
+            std::max(0.0, std::min(b, 1.0))
+        };
+    }
+
+    Color Max(const Color& c) const
+    {
+        return {
+            std::max(r, c.r),
+            std::max(g, c.g),
+            std::max(b, c.b)
+        };
+    }
 };
 
 struct Material
 {
-    float emission;
+    VecNum reflectivity;
+    VecNum emissionStr;
+    Color emissionCol;
     Color col;
 
-    Material(float emission, Color col) :
-        emission(emission), col(col)
+    Material(Color col) :
+        reflectivity(0.0), emissionStr(0.0), emissionCol(Color()), col(col)
+    {}
+    Material(Color emissionCol, VecNum emissionStr) :
+        reflectivity(0.0), emissionStr(emissionStr), emissionCol(emissionCol), col(Color())
+    {}
+    Material(Color col, VecNum reflectivity, Color emissionCol, VecNum emissionStr) :
+        reflectivity(reflectivity), emissionStr(emissionStr), emissionCol(emissionCol), col(col)
+    {}
+};
+
+struct SurfaceHitInfo
+{
+    Color surfaceColor;
+    Color surfaceEmission;
+    Color cumulativeLight;
+
+    SurfaceHitInfo(Color surfaceColor, Color surfaceEmission, Color cumulativeLight) :
+        surfaceColor(surfaceColor), surfaceEmission(surfaceEmission), cumulativeLight(cumulativeLight)
     {}
 };

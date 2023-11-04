@@ -28,15 +28,15 @@ struct Ray
 
 struct Hit
 {
-    float len;
+    double len;
     Vec3 pos, normal;
     void* target;
 
     Hit() :
-        len(0.0f), pos({}), normal({}), target(nullptr)
+        len(0.0), pos({}), normal({}), target(nullptr)
     {}
 
-    Hit(float len, Vec3 pos, Vec3 normal, void* target) :
+    Hit(double len, Vec3 pos, Vec3 normal, void* target) :
         len(len), pos(pos), normal(normal), target(target)
     {
         this->normal.Normalize();
@@ -51,13 +51,11 @@ struct Cam
         pos, 
         fwd, right, up;
 
-
     Cam(float fov, Vec3 pos, Vec3 fwd) :
         fov(fov), pos(pos), fwd(fwd)
     {
         UpdateRotation();
     }
-
 
     void UpdateRotation()
     {
@@ -73,10 +71,10 @@ struct Cam
 
 struct Light
 {
-    float intensity;
+    double intensity;
     Color col;
 
-    Light(float intensity, Color col) :
+    Light(double intensity, Color col) :
         intensity(intensity), col(col)
     {}
 
@@ -85,14 +83,14 @@ struct Light
         return Vec3();
     }
 
-    virtual float GetDistSqr(const Vec3& objPos) const
+    virtual double GetDistSqr(const Vec3& objPos) const
     {
-        return std::numeric_limits<float>::max();
+        return std::numeric_limits<double>::max();
     }
 
-    virtual float GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const
+    virtual double GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const
     {
-        return intensity * surfaceNormal.Dot(lightray.dir);
+        return intensity * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
 };
 
@@ -100,7 +98,7 @@ struct GlobalLight : Light
 {
     Vec3 normal;
 
-    GlobalLight(Vec3 normal, float intensity, Color col) :
+    GlobalLight(Vec3 normal, double intensity, Color col) :
         Light(intensity, col), normal(normal)
     {
         this->normal.Normalize();
@@ -108,26 +106,26 @@ struct GlobalLight : Light
 
     Vec3 GetRelativePos(const Vec3& objPos) const override
     {
-        return normal * (-1.0f);
+        return normal * (-1.0);
     }
 
-    float GetDistSqr(const Vec3& objPos) const override
+    double GetDistSqr(const Vec3& objPos) const override
     {
-        return std::numeric_limits<float>::max();
+        return std::numeric_limits<double>::max();
     }
 
-    float GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
+    double GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
     {
-        return intensity * surfaceNormal.Dot(lightray.dir);
+        return intensity * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
 };
 
 struct PointLight : Light
 {
     Vec3 pos;
-    float falloff;
+    double falloff;
 
-    PointLight(Vec3 pos, float falloff, float intensity, Color col) :
+    PointLight(Vec3 pos, double falloff, double intensity, Color col) :
         Light(intensity, col), pos(pos), falloff(falloff)
     {}
 
@@ -136,14 +134,14 @@ struct PointLight : Light
         return pos - objPos;
     }
 
-    float GetDistSqr(const Vec3& objPos) const override
+    double GetDistSqr(const Vec3& objPos) const override
     {
         return (pos - objPos).MagSqr();
     }
 
-    float GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
+    double GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
     {
-        return (intensity / (pos - lightray.pos).MagSqr()) * surfaceNormal.Dot(lightray.dir);
+        return (intensity / (pos - lightray.pos).MagSqr()) * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
 };
 
@@ -169,7 +167,6 @@ struct Cube : Shape
     Cube(Vec3 min, Vec3 max, Material mat) :
         Shape(mat), min(min), max(max)
     {}
-
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
@@ -221,28 +218,27 @@ struct Cube : Shape
 
 struct Sphere : Shape
 {
-    float rad;
+    double rad;
     Vec3 pos;
 
-    Sphere(float rad, Vec3 pos, Material mat) :
+    Sphere(double rad, Vec3 pos, Material mat) :
         Shape(mat), rad(rad), pos(pos)
     {}
-
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
         Vec3 oc = ray.pos - pos;
-        float b = oc.Dot(ray.dir);
+        double b = oc.Dot(ray.dir);
 
         Vec3 qc = oc - ray.dir * b;
-        float h = rad * rad - qc.Dot(qc);
+        double h = rad * rad - qc.Dot(qc);
 
         if (h < 0)
             return false;
 
-        h = 1.0f / InverseSqrt(h);
+        h = 1.0 / InverseSqrt(h);
 
-        float
+        double
             t0 = -b - h,
             t1 = -b + h;
 
@@ -279,7 +275,7 @@ struct Tri : Shape
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
         Vec3 edge1, edge2, h, s, q;
-        float a, f, u, v;
+        double a, f, u, v;
 
         edge1 = v1 - v0;
         edge2 = v2 - v0;
@@ -307,7 +303,7 @@ struct Tri : Shape
         if (v < 0 || u + v > 1)
             return false;
 
-        float t = f * edge2.Dot(q);
+        double t = f * edge2.Dot(q);
 
         if (t > 0)
         {
@@ -337,7 +333,7 @@ struct Plane : Shape
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
-        float a = normal.Dot(ray.dir);
+        double a = normal.Dot(ray.dir);
 
         if (a >= 0)
             return false;
@@ -345,7 +341,7 @@ struct Plane : Shape
         if (normal.Dot(pos - ray.pos) >= 0)
             return false;
 
-        float
+        double
             b = normal.Dot(ray.dir),
             d = normal.Dot(pos),
             t = (d - normal.Dot(ray.pos)) / b;

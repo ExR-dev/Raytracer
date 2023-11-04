@@ -10,12 +10,12 @@
 struct Scene
 {
     bool disableLighting;
+    int lightingType;
 
     int maxBounces;
     int raySplits;
 
-    Color sunCol;
-    float sunStr;
+    Color skyCol;
 
     std::shared_ptr<Light>* lightPtrs;
     int lightCount;
@@ -23,25 +23,29 @@ struct Scene
     std::shared_ptr<Shape>* shapePtrs;
     int shapeCount;
 
-    Scene(int maxBounces, int raySplits, Color sunCol, float sunStr) :
-        maxBounces(maxBounces), raySplits(raySplits), sunCol(sunCol), sunStr(sunStr),
+    Scene(bool disableLighting, int lightingType, int maxBounces, int raySplits, Color skyCol) :
+        disableLighting(disableLighting), lightingType(lightingType),
+        maxBounces(maxBounces), raySplits(raySplits), 
+        skyCol(skyCol),
         lightPtrs(nullptr), lightCount(0), 
         shapePtrs(nullptr), shapeCount(0)
-    {
-        disableLighting = true;
-    }
+    {}
 };
 
 
 
-Vec3 CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce)
+SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
 {
-    Hit bestHit = {};
+    SurfaceHitInfo surface = SurfaceHitInfo(
+        Color(), 
+        Color(),
+        Color()
+    );
 
-    float len = 0.0f;
+    Hit bestHit = {};
+    double len = 0.0;
     bool hasHitSomething = false;
 
-    Vec3 hitCol = Vec3(scene.sunCol.r, scene.sunCol.g, scene.sunCol.b);
     for (int j = 0; j < scene.shapeCount; j++)
     {
         Shape* currShape = scene.shapePtrs[j].get();
@@ -50,112 +54,106 @@ Vec3 CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce)
             if (((Shape*)hit.target) == currShape)
                 continue;
 
-        if (currShape->RayIntersect(ray, &hit))
+        Hit tempHit = {};
+        if (currShape->RayIntersect(ray, &tempHit))
         {
-            if (hasHitSomething && hit.len >= len)
+            if (hasHitSomething && tempHit.len >= len)
                 continue;
 
-            bestHit = hit;
-            len = hit.len;
+            bestHit = tempHit;
+            len = tempHit.len;
             hasHitSomething = true;
         }
     }
 
-    Vec3 lighting = Vec3(0);
     if (hasHitSomething)
     {
-        hitCol = Vec3(
-            ((Shape*)bestHit.target)->mat.col.r,
-            ((Shape*)bestHit.target)->mat.col.g,
-            ((Shape*)bestHit.target)->mat.col.b
-        );
+        Shape* hitShape = (Shape*)bestHit.target;
+
+        surface.surfaceColor = hitShape->mat.col;
+        surface.surfaceEmission = hitShape->mat.emissionCol * hitShape->mat.emissionStr;
 
         if (scene.disableLighting)
         {
-            lighting = Vec3(1.0, 1.0, 1.0);
+            surface.cumulativeLight = Color(1, 1, 1);
             goto endHit;
         }
 
-        lighting = hitCol * ((Shape*)bestHit.target)->mat.emission;
-
-        Shape* hitShape = (Shape*)bestHit.target;
-        Ray lightRay(bestHit.pos, hit.normal);
-
-        for (int j = 0; j < scene.lightCount; j++)
+        if (scene.lightingType != 2)
         {
-            Light* currLight = scene.lightPtrs[j].get();
-            Vec3 toLight = currLight->GetRelativePos(bestHit.pos);
-            toLight.Normalize();
-
-            if (bestHit.normal.Dot(toLight) <= 0)
-                continue;
-
-            float distSqr = currLight->GetDistSqr(bestHit.pos);
-
-            Ray lightRay(bestHit.pos, toLight);
-            Hit lightHit = {};
-
-            bool isBlocked = false;
-            for (int k = 0; k < scene.shapeCount; k++)
+            for (int j = 0; j < scene.lightCount; j++)
             {
-                Shape* currShape = scene.shapePtrs[k].get();
-                if (currShape == hitShape)
+                Light* currLight = scene.lightPtrs[j].get();
+                Vec3 dirToLight = currLight->GetRelativePos(bestHit.pos);
+                dirToLight.Normalize();
+
+                if (bestHit.normal.Dot(dirToLight) <= 0)
                     continue;
 
-                if (currShape->RayIntersect(lightRay, &lightHit))
-                    if ((lightHit.len * lightHit.len) < distSqr)
-                        isBlocked = true;
+                double distSqr = currLight->GetDistSqr(bestHit.pos);
+
+                Ray lightRay(bestHit.pos, dirToLight);
+                Hit lightHit = {};
+
+                bool isBlocked = false;
+                for (int k = 0; k < scene.shapeCount; k++)
+                {
+                    Shape* currShape = scene.shapePtrs[k].get();
+                    if (currShape == hitShape)
+                        continue;
+
+                    if (currShape->RayIntersect(lightRay, &lightHit))
+                        if ((lightHit.len * lightHit.len) < distSqr)
+                            isBlocked = true;
+
+                    if (isBlocked)
+                        break;
+                }
 
                 if (isBlocked)
-                    break;
+                    continue;
+
+                surface.cumulativeLight += currLight->col * 
+                    currLight->GetIntensity(lightRay, bestHit.normal);
             }
-
-            if (isBlocked)
-                continue;
-
-            float lightStr = currLight->GetIntensity(lightRay, bestHit.normal);
-
-            lighting += Vec3(
-                currLight->col.r,
-                currLight->col.g,
-                currLight->col.b
-            ) * lightStr;
         }
 
-        if (bounce < scene.maxBounces)
+        if (scene.lightingType != 0 && bounce <= scene.maxBounces)
         {
-            for (int i = 0; i < scene.raySplits; i++)
+            for (int i = 0; i <= scene.raySplits; i++)
             {
-                Vec3 randDir = RandDir();
+                Vec3 randDir = bestHit.normal + RandDir();
+                randDir.Normalize();
 
-                if (bestHit.normal.Dot(randDir) <= 0)
-                    randDir *= -1.0f;
+                Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
 
-                Ray randRay(bestHit.pos, randDir);
-                Hit randHit = {};
+                Vec3 bounceDir = randDir.VLerp(reflectDir, ((Shape*)bestHit.target)->mat.reflectivity);
+                Ray bounceRay(bestHit.pos, bounceDir);
+                Hit bounceHit = {};
 
-                Vec3 outCol = CastRayInScene(scene, randRay, randHit, bounce + 1);
+                SurfaceHitInfo bounceSurface = CastRayInScene(scene, bounceRay, bounceHit, bounce + 1);
+                Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
 
-                if (randHit.target != nullptr)
-                {
-                    lighting += (outCol * 1.00f / (scene.raySplits)) * (1.0f / ((bestHit.pos - randHit.pos).MagSqr() + 1.0f)) * bestHit.normal.Dot(randDir)
-                        * randHit.normal.Dot((randDir * -1.0f)); // This bit is experimental.
-
-                    //lighting += (outCol * 0.1f / (scene.raySplits * scene.maxBounces)) * bestHit.normal.Dot(randDir) * randHit.normal.Dot((randDir * -1.0f)); // This bit is experimental.
-                }
+                bounceCol /= (double)(scene.raySplits + 1);
+                surface.cumulativeLight += bounceCol;
             }
         }
     }
     else
-        lighting = (Vec3)scene.sunCol * scene.sunStr;
+    {
+        if (bounce == 0)
+            surface.surfaceEmission = scene.skyCol;
+        else
+            surface.surfaceEmission = scene.skyCol * hit.normal.Dot(ray.dir * -1.0);
+    }
 
 endHit:
     hit = bestHit;
-    return hitCol = Vec3(
-        std::max(0.0f, std::min(hitCol.x * lighting.x, 1.0f)),
-        std::max(0.0f, std::min(hitCol.y * lighting.y, 1.0f)),
-        std::max(0.0f, std::min(hitCol.z * lighting.z, 1.0f))
-    );
+
+    surface.surfaceColor.Max();
+    surface.surfaceEmission.Max();
+    surface.cumulativeLight.Max();
+    return surface;
 }
 
 
@@ -165,89 +163,189 @@ int main()
     // Build Scene
     Cam cam(
         70.0f,
-        { 0.0, 1.0, -3.0 },
+        { 2.5, 2.0, -3.0 },
         { 0.0, 0.0, 1.0 }
     );
 
-    //Color sunCol(0.01, 0.01, 0.01);
-    Color sunCol(0, 0, 0);
-    float sunStr = 0.0;
+    //Scene scene(true, true, 6, 0, Color(0.0, 0.01, 0.025));
+    //Scene scene(true, true, 6, 0, Color(0.7, 0.7, 0.7));
+    Scene scene(true, true, 5, 0, Color());
+
 
     std::shared_ptr<Light> lightPtrs[] = {
         /*std::make_shared<GlobalLight>(GlobalLight(
-            Vec3(0), 0, Color()
+            Vec3(-1, -1, -1), 1.0, scene.skyCol
         )),*/
-
-
-        /*std::make_shared<GlobalLight>(GlobalLight(
-            {0.5, -1.0, 0.28}, sunStr, sunCol
+        /*std::make_shared<PointLight>(PointLight(
+            Vec3(2.5, 3.9, 1.75),
+            0.0, 0.33, Color(1,1,1)
         )),*/
-
-        std::make_shared<PointLight>(PointLight(
-            {3.3, 1.5, -4.5},
-            0.0f, 5.0f, {1.0, 0.0, 0.0}
-        )),
-        std::make_shared<PointLight>(PointLight(
-            {-1.5, 4.0, 4.0},
-            0.0f, 5.0f, {0.0, 1.0, 0.0}
-        )),
-        std::make_shared<PointLight>(PointLight(
-            {-3.0, 3.0, -2.0},
-            0.0f, 5.0f, {0.0, 0.0, 1.0}
-        )),
+        0
     };
-    int lightCount = sizeof(lightPtrs) / sizeof(std::shared_ptr<Light>);
-
-    std::shared_ptr<Shape> shapePtrs[] = {
-        std::make_shared<Plane>(Plane(
-            { 0.0, 0.0, 0.0 },
-            { 0.0, 1.0, 0.0 },
-            { 0.0f, {1, 1, 1} }
-        )),
-        std::make_shared<Plane>(Plane(
-            { 0.0, 6.0, 0.0 },
-            { 0.0, -1.0, 0.0 },
-            { 0.0f, {.25, .25, .25} }
-        )),
-
-        std::make_shared<Cube>(Cube(
-            { -0.25,  0.0,  0.5 },
-            { 1.75,  3.0,  3.5 },
-            { 0.0f, {1, 0, 0} }
-        )),
-
-        std::make_shared<Sphere>(Sphere(
-            1.75,
-            { -3.0, 0.75, -0.25 },
-            { 0.0f, {0, 1, 0} }
-        )),
-
-        std::make_shared<Tri>(Tri(
-            {  2.9, 0.0, -4.9 },
-            {  3.0, 2.7, -3.7 },
-            {  2.0, 0.0, -2.0 },
-            { 0.0f, {0, 1, 1} }
-        )),
-        std::make_shared<Tri>(Tri(
-            {  3.0, 2.7, -3.7 },
-            { -1.2, 0.0, -4.7 },
-            {  2.0, 0.0, -2.0 },
-            { 0.0f, {1, 1, 0} }
-        )),
-        std::make_shared<Tri>(Tri(
-            { -1.2, 0.0, -4.7 },
-            {  3.0, 2.7, -3.7 },
-            {  2.9, 0.0, -4.9 },
-            { 0.0f, {1, 0, 1} }
-        )),
-    };
-    int shapeCount = sizeof(shapePtrs) / sizeof(std::shared_ptr<Shape>);
-
-
-    Scene scene(2, 2, sunCol, sunStr);
+    int lightCount = 0; //sizeof(lightPtrs) / sizeof(std::shared_ptr<Light>);
 
     scene.lightPtrs = lightPtrs;
     scene.lightCount = lightCount;
+
+
+    /*std::shared_ptr<Shape> shapePtrs[] = {
+        std::make_shared<Plane>(Plane(
+            Vec3(0.0, 0.0, 0.0),
+            Vec3(0.0, 1.0, 0.0),
+            Material(Color(1.0, 1.0, 1.0))
+        )),
+
+
+        std::make_shared<Sphere>(Sphere(
+            6.0,
+            Vec3(-3.875, 6.0, 24.0),
+            Material(Color(1, 1, 1), 5.0)
+        )),
+
+
+        std::make_shared<Sphere>(Sphere(
+            3.0,
+            Vec3(-3.875, 2.0, -6.0),
+            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+        )),
+
+        std::make_shared<Sphere>(Sphere(
+            2.0,
+            Vec3(0.0, 2.0, 0.0),
+            Material(Color(1, 1, 1))
+        )),
+        std::make_shared<Sphere>(Sphere(
+            1.5,
+            Vec3(-3.5, 1.5, 0.0),
+            Material(Color(1, 0, 0))
+        )),
+        std::make_shared<Sphere>(Sphere(
+            1.0,
+            Vec3(-6.0, 1.0, 0.0),
+            Material(Color(0, 1, 0), 0.5, Color(), 0.0)
+        )),
+        std::make_shared<Sphere>(Sphere(
+            0.75,
+            Vec3(-7.75, 0.75, 0.0),
+            Material(Color(0, 0, 1))
+        )),
+    };*/
+    std::shared_ptr<Shape> shapePtrs[] = {
+        /*std::make_shared<Cube>(Cube( // Light
+            Vec3(1.5, 3.9, 1.0),
+            Vec3(3.5, 4.0, 2.5),
+            Material(Color(1,1,1), 0.0, Color(1,1,1), 2.0)
+        )),*/
+
+
+        std::make_shared<Sphere>(Sphere(
+            0.4,
+            Vec3(4.0, 2.0, 1.75),
+            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+        )),
+        std::make_shared<Sphere>(Sphere(
+            0.5,
+            Vec3(3.0, 2.0, 1.75),
+            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+        )),
+        std::make_shared<Sphere>(Sphere(
+            0.5,
+            Vec3(2.0, 2.0, 1.75),
+            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+        )),
+        std::make_shared<Sphere>(Sphere(
+            0.7,
+            Vec3(1.0, 2.0, 1.75),
+            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+        )),
+
+
+        std::make_shared<Tri>(Tri( // Floor
+            Vec3(0.0, 0.0, 0.0),
+            Vec3(5.0, 0.0, 3.5),
+            Vec3(5.0, 0.0, 0.0),
+            Material(Color(1, 1, 1), 0.5, Color(), 0.0)
+        )),
+        std::make_shared<Tri>(Tri(
+            Vec3(5.0, 0.0, 3.5),
+            Vec3(0.0, 0.0, 0.0),
+            Vec3(0.0, 0.0, 3.5),
+            Material(Color(1, 1, 1), 0.5, Color(), 0.0)
+        )),
+
+
+        std::make_shared<Tri>(Tri( // Roof
+            Vec3(0.0, 4.0, 0.0),
+            Vec3(5.0, 4.0, 3.5),
+            Vec3(0.0, 4.0, 3.5),
+            //Material(Color(0.25, 0.25, 0.25))
+            Material(Color(0, 0, 0), 0.0, Color(1,1,1), 1.0)
+        )),
+        std::make_shared<Tri>(Tri(
+            Vec3(5.0, 4.0, 3.5),
+            Vec3(0.0, 4.0, 0.0),
+            Vec3(5.0, 4.0, 0.0),
+            //Material(Color(0.25, 0.25, 0.25))
+            Material(Color(0, 0, 0), 0.0, Color(1,1,1), 1.0)
+        )),
+
+
+        std::make_shared<Tri>(Tri( // Front
+            Vec3(0.0, 0.0, 0.0),
+            Vec3(5.0, 0.0, 0.0),
+            Vec3(5.0, 4.0, 0.0),
+            Material(Color(0, 0, 0), 0.0, Color(), 0.0)
+        )),
+        std::make_shared<Tri>(Tri(
+            Vec3(5.0, 4.0, 0.0),
+            Vec3(0.0, 4.0, 0.0),
+            Vec3(0.0, 0.0, 0.0),
+            Material(Color(0, 0, 0), 0.0, Color(), 0.0)
+        )),
+
+
+        std::make_shared<Tri>(Tri( // Left
+            Vec3(0.0, 0.0, 0.0),
+            Vec3(0.0, 4.0, 0.0),
+            Vec3(0.0, 0.0, 3.5),
+            Material(Color(1, 0, 0), 0.66, Color(), 0.0)
+        )),
+        std::make_shared<Tri>(Tri(
+            Vec3(0.0, 4.0, 3.5),
+            Vec3(0.0, 0.0, 3.5),
+            Vec3(0.0, 4.0, 0.0),
+            Material(Color(1, 0, 0), 0.66, Color(), 0.0)
+        )),
+
+
+        std::make_shared<Tri>(Tri( // Back
+            Vec3(5.0, 0.0, 3.5),
+            Vec3(0.0, 0.0, 3.5),
+            Vec3(5.0, 4.0, 3.5),
+            Material(Color(0, 1, 0), 0.66, Color(), 0.0)
+        )),
+        std::make_shared<Tri>(Tri(
+            Vec3(0.0, 4.0, 3.5),
+            Vec3(5.0, 4.0, 3.5),
+            Vec3(0.0, 0.0, 3.5),
+            Material(Color(0, 1, 0), 0.66, Color(), 0.0)
+        )),
+
+
+        std::make_shared<Tri>(Tri( // Right
+            Vec3(5.0, 0.0, 0.0),
+            Vec3(5.0, 0.0, 3.5),
+            Vec3(5.0, 4.0, 0.0),
+            Material(Color(0, 0, 1), 0.66, Color(), 0.0)
+        )),
+        std::make_shared<Tri>(Tri(
+            Vec3(5.0, 4.0, 3.5),
+            Vec3(5.0, 4.0, 0.0),
+            Vec3(5.0, 0.0, 3.5),
+            Material(Color(0, 0, 1), 0.66, Color(), 0.0)
+        )),
+    };
+    int shapeCount = sizeof(shapePtrs) / sizeof(std::shared_ptr<Shape>);
 
     scene.shapePtrs = shapePtrs;
     scene.shapeCount = shapeCount;
@@ -255,9 +353,16 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 320,
-        h = 180,
+        w = 640,
+        h = 360,
         dim = w * h;
+
+    bool cumulativeLighting = true;
+    int cumulativeFrameCount = 0;
+
+    Color* frame = new Color[dim];
+    for (int i = 0; i < dim; i++)
+        frame[i] = Color();
 
     sf::RenderWindow window(
         sf::VideoMode(w, h),
@@ -269,11 +374,11 @@ int main()
         sW = window.getSize().x,
         sH = window.getSize().y;
 
-    float
-        scaleW = (float)sW / (float)w,
-        scaleH = (float)sH / (float)h;
+    double
+        scaleW = (double)sW / (double)w,
+        scaleH = (double)sH / (double)h;
 
-
+    bool randomizeSampleDir = false;
     bool disableScanSpeed = false;
     unsigned int scanSpeed = dim / 8;
     unsigned int currPix = 0;
@@ -287,7 +392,7 @@ int main()
 
 
     sf::Clock clock;
-    float lT = 0.0f, tT = 0.0f, dT = 0.0f;
+    double lT = 0.0, tT = 0.0, dT = 0.0;
 
     sf::Vector2i deltas;
     sf::Vector2i fixed(window.getSize());
@@ -295,6 +400,22 @@ int main()
     fixed.y /= 2;
 
     bool giveControl = true;
+    bool pauseSampling = false;
+
+
+    {
+        scene.disableLighting = false;
+
+        randomizeSampleDir = true;
+
+        disableScanSpeed = true;
+        scanSpeed = dim;
+
+        giveControl = false;
+
+        cumulativeLighting = true;
+    }
+
     while (window.isOpen())
     {
         lT = tT;
@@ -338,7 +459,14 @@ int main()
             else if (event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::MouseWheelScrolled)
             {
                 if (event.mouseButton.button == 1)
+                {
                     giveControl = !giveControl;
+
+                    currPix = 0;
+                    cumulativeFrameCount = 0;
+                    cumulativeLighting = !giveControl;
+                }
+
                 if (event.mouseWheelScroll.delta != 0.0f)
                     cam.fov -= event.mouseWheelScroll.delta;
             }
@@ -346,7 +474,75 @@ int main()
             if (event.type == sf::Event::KeyPressed)
             {
                 if (event.key.code == sf::Keyboard::L)
+                {
                     scene.disableLighting = !scene.disableLighting;
+
+                    if (scene.disableLighting)
+                    {
+                        currPix = 0;
+                        cumulativeFrameCount = 0;
+                        cumulativeLighting = false;
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::E)
+                {
+                    scene.lightingType = ++scene.lightingType % 3;
+
+                }
+                else if (event.key.code == sf::Keyboard::R)
+                    randomizeSampleDir = !randomizeSampleDir;
+                else if (event.key.code == sf::Keyboard::P)
+                    pauseSampling = !pauseSampling;
+                else if (event.key.code == sf::Keyboard::C)
+                {
+                    currPix = 0;
+                    cumulativeFrameCount = 0;
+                    for (int i = 0; i < dim; i++)
+                        frame[i] = Color();
+                }
+                else if (event.key.code == sf::Keyboard::Tab && !event.key.alt)
+                {
+                    disableScanSpeed = !disableScanSpeed;
+                    scanSpeed = (disableScanSpeed) ? dim : dim / 12;
+                }
+                else if (event.key.code == sf::Keyboard::Q)
+                {
+
+                    for (int y = 1; y < h - 1; y++)
+                    {
+                        for (int x = 1; x < w - 1; x++)
+                        {
+                            if (x == 0 || x == w - 1)
+                                continue;
+                            if (y == 0 || y == h - 1)
+                                continue;
+
+                            int
+                                tl = (x - 1) + (y - 1) * w,
+                                tm = (x + 0) + (y - 1) * w,
+                                tr = (x + 1) + (y - 1) * w,
+                                ml = (x - 1) + (y + 0) * w,
+                                mm = (x + 0) + (y + 0) * w,
+                                mr = (x + 1) + (y + 0) * w,
+                                bl = (x - 1) + (y + 1) * w,
+                                bm = (x + 0) + (y + 1) * w,
+                                br = (x + 1) + (y + 1) * w;
+
+                            Color avgCol =
+                                frame[tl] + frame[tm] + frame[tr] +
+                                frame[ml] + frame[mm] + frame[mr] +
+                                frame[bl] + frame[bm] + frame[br];
+                            avgCol /= 9.0;
+                            avgCol *= 9.0;
+                            avgCol /= cumulativeFrameCount;
+
+                            frame[mm] = avgCol;
+
+                        }
+                    }
+
+                    cumulativeFrameCount = 8;
+                }
             }
         }
 
@@ -369,18 +565,6 @@ int main()
                 cam.pos += cam.up * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
                 cam.pos -= cam.up * 4.0f * dT;
-
-
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Tab))
-            {
-                scanSpeed = dim;
-                disableScanSpeed = true;
-            }
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::F))
-            {
-                scanSpeed = dim / 2;
-                disableScanSpeed = false;
-            }
 
             deltas = fixed - sf::Mouse::getPosition();
             if (deltas != sf::Vector2i(0, 0))
@@ -410,143 +594,86 @@ int main()
             cam.UpdateRotation();
         }
 
-        float
-            pHeight = tan((float)(cam.fov / 2.0f) * PI / 180.0f) * 2.0f,
-            pWidth = pHeight / ((float)h / (float)w);
+        double
+            viewHeight = tan(((double)cam.fov / 2.0) * PI / 180.0) * 2.0,
+            viewWidth = viewHeight / ((double)h / (double)w);
 
-        Vec3 blLocal(-pWidth / 2.0f, -pHeight / 2.0f, 1.0f);
+        Vec3 botLeftLocal(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
 
         int drawStart = currPix;
-        int drawEnd = std::min(dim,currPix + scanSpeed);
+        int drawEnd = std::min(dim, currPix + scanSpeed);
 
-        #pragma omp parallel for num_threads(4)
+        #pragma omp parallel for num_threads(6)
         for (int i = drawStart; i < drawEnd; i++)
         {
+            if (pauseSampling)
+                break;
+
             unsigned int
                 x = i % w,
                 y = i / w;
 
-            float
-                v = 1.0f - (float)y / (float)h,
-                u = (float)x / (float)w;
+            double u, v;
+            if (randomizeSampleDir)
+            {
+                v = 1.0 - ((double)y + (RandNum() - 0.5) / 2.0) / (double)h;
+                u = ((double)x + (RandNum() - 0.5) / 2.0) / (double)w;
+            }
+            else
+            {
+                v = 1.0 - (double)y / (double)h;
+                u = (double)x / (double)w;
+            }
 
-            Vec3 pLocal = blLocal + Vec3(pWidth * u, pHeight * v, 0.0f);
-            Vec3 p = cam.right * pLocal.x + cam.up * pLocal.y + cam.fwd * pLocal.z;
-            p.Normalize();
+            Vec3 dirLocal = botLeftLocal + Vec3(viewWidth * u, viewHeight * v, 0.0);
+            Vec3 pixDir = cam.right * dirLocal.x + cam.up * dirLocal.y + cam.fwd * dirLocal.z;
+            pixDir.Normalize();
 
-            Ray ray(cam.pos, p);
+            Ray ray(cam.pos, pixDir);
             Hit hit = {};
 
-            Vec3 hitCol = CastRayInScene(scene, ray, hit, 0);
-            
+            SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit);
+            Color hitCol = (hitSurface.surfaceColor * hitSurface.cumulativeLight) + hitSurface.surfaceEmission;
+            //hitCol.Clamp();
+            Color toRender = Color();
+
+            if (cumulativeLighting)
+            {
+                /*if (randomizeSampleDir)
+                {
+                    double avgWeight = 1.0 / (double)(cumulativeFrameCount + 1);
+                    frame[i] = (frame[i] * (1.0 - avgWeight)) + (hitCol * avgWeight);
+                    toRender = frame[i];
+                }
+                else
+                {
+                    frame[i] += hitCol;
+                    cumulativeDivisor = (double)(cumulativeFrameCount + 1);
+                }*/
+
+                frame[i] += hitCol;
+                toRender = frame[i] / (double)(cumulativeFrameCount + 1);
+            }
+            else
+            {
+                frame[i] = hitCol;
+                toRender = frame[i];
+            }
+
+            toRender.Clamp();
             img.setPixel(x, y, {
-                (uint8_t)(hitCol.x * 255.0), 
-                (uint8_t)(hitCol.y * 255.0), 
-                (uint8_t)(hitCol.z * 255.0)
+                (uint8_t)(toRender.r * 255.0), 
+                (uint8_t)(toRender.g * 255.0), 
+                (uint8_t)(toRender.b * 255.0)
             });
         }
-        currPix = drawEnd % dim;
 
-
-        /*Vec3 spCPoint = Vec3(9.5, 9.5, 0.0);
-        float axisLength = 8.0f;
-
-        double
-            camPitch = asin(-cam.fwd.y),
-            camYaw = atan2(cam.fwd.x, cam.fwd.z);
-
-        double D2R = PI / 180.0;
-        double yScale = 1.0 / tan(D2R * cam.fov / 2.0);
-        double xScale = yScale / ((double)w / (double)w);
-        Matrix4x4 camProjMat = Matrix4x4(
-            xScale, 0.0,    0.0,    0.0,
-            0.0,    yScale, 0.0,    0.0,
-            0.0,    0.0,    -1.0,   -1.0,
-            0.0,    0.0,    0.0,    0.0
-        );
-
-        Matrix4x4 rotationMat = identity.Rotate(Vec3(camPitch, camYaw, 0.0));
-        Matrix4x4 rotationMat = identity.Rotate(Vec3(0.0, -camPitch, -camYaw));
-
-        Matrix4x4 camBase = Matrix4x4(camRight, camUp, cam.fwd);
-        Matrix4x4 camBaseRot = camBase.Rotate(Vec3(0.0, -camPitch, -camYaw));
-
-        Vec3 eAngles = camBase.GetEulerAngles(cam.fwd);
-        eAngles *= -1;
-        std::cout << "(x: " << eAngles.x << ", y: " << eAngles.y << ", z: " << eAngles.z << ")\n";
-
-        Matrix4x4 eRotMat = identity.Rotate(eAngles);
-
-
-        for (int i = 0; i < 3; i++)
+        if (!pauseSampling)
         {
-            Vec3 axisNormal;
-            sf::Color axisCol;
-            if (i == 0)
-            {
-                axisCol = {255, 0, 0};
-                //axisNormal = camBase.GetCol(0);
-                //axisNormal = camBaseRot.GetCol(0);
-                //axisNormal = rotationMat.GetCol(0);
-                //axisNormal = eRotMat.GetCol(0);
-            }
-            else if (i == 1)
-            {
-                axisCol = {0, 255, 0};
-                //axisNormal = camBase.GetCol(1);
-                //axisNormal = camBaseRot.GetCol(1);
-                //axisNormal = rotationMat.GetCol(1);
-                //axisNormal = eRotMat.GetCol(1);
-            }
-            else if (i == 2)
-            {
-                axisCol = {0, 0, 255};
-                //axisNormal = camBase.GetCol(2);
-                //axisNormal = camBaseRot.GetCol(2);
-                //axisNormal = rotationMat.GetCol(2);
-                //axisNormal = eRotMat.GetCol(2);
-            }
-            axisNormal.Normalize();
-
-            if (axisNormal.z < 0)
-                axisCol = {
-                    (uint8_t)((double)axisCol.r / (1.0 - axisNormal.z)),
-                    (uint8_t)((double)axisCol.g / (1.0 - axisNormal.z)),
-                    (uint8_t)((double)axisCol.b / (1.0 - axisNormal.z))
-                };
-
-            Vec3 transition = spCPoint;
-            int ltX = 0, ltY = 0;
-
-            axisNormal *= axisLength;
-            for (double i = 0.01; i <= 1.0; i += 0.03)
-            {
-                transition = spCPoint.VLerp(spCPoint + axisNormal, i);
-                
-                int
-                    tX = (int)transition.x,
-                    tY = (int)transition.y;
-
-                if ( (tX != ltX || tY != ltY) && (tX >= 0 && tY >= 0) )
-                    img.setPixel(tX, tY, axisCol);
-
-                ltX = tX,
-                ltY = tY;
-            }
-        }*/
-
-        /*for (int y = 1; y < 4; y++)
-        {
-            for (int x = 1; x < 4; x++)
-            {
-                if (dT > 0.09f)
-                    img.setPixel(x, y, {255, 0, 0});
-                else if (dT < 0.07f)
-                    img.setPixel(x, y, {0, 0, 255});
-                else
-                    img.setPixel(x, y, {0, 255, 0});
-            }
-        }*/
+            currPix = drawEnd % dim;
+            if (currPix != drawEnd)
+                cumulativeFrameCount++;
+        }
 
         tex.loadFromImage(img);
         sprite.setTexture(tex);
@@ -556,6 +683,14 @@ int main()
         window.display();
     }
 
-    shapePtrs->reset();
+    for (int i = 0; i < shapeCount; i++)
+        shapePtrs[i].reset();
+    for (int i = 0; i < lightCount; i++)
+        lightPtrs[i].reset();
+
+    //shapePtrs->reset();
+    //lightPtrs->reset();
+    delete[] frame;
+
     return 0;
 }
