@@ -1,9 +1,12 @@
 #include "Plane.h"
 
+#include <cmath>
+
+
 Plane::Plane(const Vector3D & colour, const Vector3D & p, const Vector3D & n) : 
 	Shape(colour), origin(p), normal(n)
 {
-	// Implement constructor logic here
+    normal.Normalize();
 }
 
 bool Plane::Intersection(const Ray & ray, double & t)

@@ -236,6 +236,8 @@ struct Sphere : Shape
 
         if (h < -MINVAL)
             return false;
+        /*if (h < 0.0)
+            return false;*/
 
         h = sqrt(std::max(0.0, h));
 
@@ -257,8 +259,8 @@ struct Sphere : Shape
         {
             hit->len = t0;
             hit->pos = ray.pos + ray.dir * hit->len;
-            hit->normal = hit->pos - pos;
-            hit->normal.Normalize();
+            hit->normal = (hit->pos - pos) / rad;
+            //hit->normal.Normalize();
             hit->target = (void*)this;
         }
         return true;

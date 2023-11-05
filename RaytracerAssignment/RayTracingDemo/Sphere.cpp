@@ -10,32 +10,28 @@ Sphere::Sphere(const Vector3D& colour, const Vector3D c, double r) :
 
 bool Sphere::Intersection(const Ray& ray, double& t)
 {
-    Vector3D sphereToRay = ray.origin - center;
-    double rayToSphereOffset = sphereToRay * ray.direction;
+    Vector3D centerToOrigin = ray.origin - center;
+    double projectedDist = centerToOrigin * ray.direction;
 
-    Vector3D qc = sphereToRay - ray.direction * rayToSphereOffset;
-    double h = radius * radius - qc * qc;
+    Vector3D pc = centerToOrigin - ray.direction * projectedDist;
+    double hitOffset = radius * radius - (pc * pc);
 
-    if (h < -0.000000001)
+    if (hitOffset < -0.000000000001)
         return false;
 
-    h = sqrt(std::max(0.0, h));
+    hitOffset = sqrt(std::max(0.0, hitOffset));
 
     double
-        t0 = -h - rayToSphereOffset,
-        t1 = h - rayToSphereOffset;
+        t0 = -hitOffset - projectedDist,
+        t1 =  hitOffset - projectedDist;
 
     if (t0 > t1)
-    {
-        double temp = t0;
-        t0 = t1;
-        t1 = temp;
-    }
+        std::swap(t0, t1);
 
-    if (t0 < 0)
+    if (t0 < 0.0)
     {
         t0 = t1;
-        if (t0 < 0)
+        if (t0 < 0.0)
             return false;
     }
 

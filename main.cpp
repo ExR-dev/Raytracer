@@ -129,12 +129,7 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
 
                 Vec3 bounceDir = randDir.VLerp(reflectDir, ((Shape*)bestHit.target)->mat.reflectivity);
                 Ray bounceRay(bestHit.pos, bounceDir);
-                Hit bounceHit = {};
-
-                /*if (reflectDir.Dot(bestHit.normal) < 0.0)
-                {
-                    std::cout << "Oops    ";
-                }*/
+                Hit bounceHit = {0.0, Vec3(), Vec3(), bestHit.target};
 
                 SurfaceHitInfo bounceSurface = CastRayInScene(scene, bounceRay, bounceHit, bounce + 1);
                 Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
@@ -167,12 +162,12 @@ int main()
 {
     // Build Scene
     Cam cam(
-        90.0f,
-        Vec3(2.66, 1.75, 1.5),
-        { -1.0, -0.33, 0.0 }
+        80.0f,
+        Vec3(2.5, 2.0, -1.0),
+        { 0.0, 0.0, 1.0 }
     );
 
-    Scene scene(true, true, 1, 0, Color());
+    Scene scene(true, true, 4, 0, Color());
 
 
     std::shared_ptr<Light> lightPtrs[] = {
@@ -234,139 +229,107 @@ int main()
         )),
     };*/
     std::shared_ptr<Shape> shapePtrs[] = {
-        /*std::make_shared<Cube>(Cube( // Light
-            Vec3(1.5, 3.98, 1.0),
-            Vec3(3.5, 4.00, 2.5),
-            Material(Color(1,1,1), 0.0, Color(1,1,1), 1.5)
-        )),*/
+        std::make_shared<Cube>(Cube( // Light
+            Vec3(1.2, 3.95, 1.0),
+            Vec3(3.8, 4.00, 2.5),
+            Material(Color(1,1,1), 0.0, Color(1,1,1), 2.2)
+        )),
 
-        std::make_shared<Sphere>(Sphere(
+
+        /*std::make_shared<Sphere>(Sphere(
             0.75,
-            Vec3(1.5, 1.5, 1.5),
-            Material(Color(1.0, 1.0, 1.0), 1.0, Color(), 0.0)
-        )),
-
-        /*std::make_shared<Cube>(Cube(
-            Vec3(1.0, 1.0, 1.0),
-            Vec3(2.0, 2.0, 2.0),
+            Vec3(1.25, 2.0, 1.75),
             Material(Color(1.0, 1.0, 1.0), 1.0, Color(), 0.0)
         )),*/
+        std::make_shared<Sphere>(Sphere(
+            1.0,
+            Vec3(2.5, 2.0, 1.75),
+            Material(Color(0.9, 0.9, 0.9), 0.75, Color(1,1,1), 0.025)
+        )),
 
 
-        /*std::make_shared<Tri>(Tri( // Floor
+        std::make_shared<Tri>(Tri( // Floor
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 0.0, 0.0),
-            Material(Color(1, 1, 1), 0.0, Color(), 0.0)
+            Material(Color(0.2, 0.2, 1.0), 0.0, Color(), 0.0)
         )),
         std::make_shared<Tri>(Tri(
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(1, 1, 1), 0.0, Color(), 0.0)
-        )),*/
-        std::make_shared<Plane>(Plane(
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(0.0, 1.0, 0.0),
-            Material(Color(0.0, 1.0, 0.0), 0.0, Color(0.0, 1.0, 0.0), 0.5)
+            Material(Color(0.2, 0.2, 1.0), 0.0, Color(), 0.0)
         )),
 
 
-        /*std::make_shared<Tri>(Tri( // Roof
+        std::make_shared<Tri>(Tri( // Roof
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 3.5),
-            Material(Color(0.25, 0.25, 0.25))
-            //Material(Color(0, 0, 0), 0.0, Color(1,1,1), 1.0)
+            Material(Color(0.25, 0.25, 0.4), 0.0, Color(), 0.0)
         )),
         std::make_shared<Tri>(Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.25, 0.25, 0.25))
-            //Material(Color(0, 0, 0), 0.0, Color(1,1,1), 1.0)
-        )),*/
-        /*std::make_shared<Plane>(Plane(
-            Vec3(0.0, 3.0, 0.0),
-            Vec3(0.0, -1.0, 0.0),
-            Material(Color(0.0, 1.0, 0.0), 0.0, Color(0.0, 1.0, 0.0), 0.5)
-        )),*/
+            Material(Color(0.25, 0.25, 0.4), 0.0, Color(), 0.0)
+        )),
 
 
-        /*std::make_shared<Tri>(Tri( // Front
+        std::make_shared<Tri>(Tri( // Front
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(1.0, 0.5, 0.3), 0.0, Color(), 0.0)
+            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
         )),
         std::make_shared<Tri>(Tri(
             Vec3(5.0, 4.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 0.0),
-            Material(Color(1.0, 0.5, 0.3), 0.0, Color(), 0.0)
-        )),*/
-        std::make_shared<Plane>(Plane(
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(0.0, 0.0, 1.0),
-            Material(Color(0.0, 0.0, 1.0), 0.0, Color(0.0, 0.0, 1.0), 0.5)
+            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
         )),
 
 
-        /*std::make_shared<Tri>(Tri( // Left
+        std::make_shared<Tri>(Tri( // Left
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
         )),
         std::make_shared<Tri>(Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
-            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
-        )),*/
-        std::make_shared<Plane>(Plane(
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(1.0, 0.0, 0.0),
-            Material(Color(1.0, 0.0, 0.0), 0.0, Color(1.0, 0.0, 0.0), 0.5)
+            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
         )),
 
 
-        /*std::make_shared<Tri>(Tri( // Back
+        std::make_shared<Tri>(Tri( // Back
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
-            Material(Color(0.3, 0.5, 1.0), 0.0, Color(), 0.0)
+            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
         )),
         std::make_shared<Tri>(Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.3, 0.5, 1.0), 0.0, Color(), 0.0)
-        )),*/
-        /*std::make_shared<Plane>(Plane(
-            Vec3(0.0, 0.0, 3.0),
-            Vec3(0.0, 0.0, -1.0),
-            Material(Color(0.0, 0.0, 1.0), 0.0, Color(0.0, 0.0, 1.0), 0.5)
-        )),*/
+            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
+        )),
 
 
-        /*std::make_shared<Tri>(Tri( // Right
+        std::make_shared<Tri>(Tri( // Right
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
+            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
         )),
         std::make_shared<Tri>(Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
-            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
-        )),*/
-        /*std::make_shared<Plane>(Plane(
-            Vec3(3.0, 0.0, 0.0),
-            Vec3(-1.0, 0.0, 0.0),
-            Material(Color(1.0, 0.0, 0.0), 0.0, Color(1.0, 0.0, 0.0), 0.5)
-        )),*/
+            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
+        )),
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(std::shared_ptr<Shape>);
 
@@ -376,8 +339,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 640,
-        h = 360,
+        w = 480,
+        h = 270,
         dim = w * h;
 
     bool cumulativeLighting = true;

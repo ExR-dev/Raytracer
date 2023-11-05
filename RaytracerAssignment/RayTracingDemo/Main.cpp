@@ -10,6 +10,7 @@
 #include "Triangle.h"
 #include "Plane.h"
 
+
 int main()
 {
 	const unsigned int width = 512;
