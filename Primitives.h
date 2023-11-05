@@ -8,10 +8,10 @@
 
 struct Ray
 {
-    Vec3 pos, dir;
+    Vec3 origin, dir;
 
-    Ray(Vec3 pos, Vec3 dir) :
-        pos(pos), dir(dir)
+    Ray(const Vec3& origin, const Vec3& dir) :
+        origin(origin), dir(dir)
     {
         this->dir.Normalize();
     }
@@ -29,15 +29,15 @@ struct Ray
 struct Hit
 {
     double len;
-    Vec3 pos, normal;
+    Vec3 origin, normal;
     void* target;
 
     Hit() :
-        len(0.0), pos({}), normal({}), target(nullptr)
+        len(0.0), origin({}), normal({}), target(nullptr)
     {}
 
-    Hit(double len, Vec3 pos, Vec3 normal, void* target) :
-        len(len), pos(pos), normal(normal), target(target)
+    Hit(double len, const Vec3& origin, const Vec3& normal, void* target) :
+        len(len), origin(origin), normal(normal), target(target)
     {
         this->normal.Normalize();
     }
@@ -48,11 +48,11 @@ struct Cam
 {
     float fov;
     Vec3 
-        pos, 
+        origin, 
         fwd, right, up;
 
-    Cam(float fov, Vec3 pos, Vec3 fwd) :
-        fov(fov), pos(pos), fwd(fwd)
+    Cam(float fov, const Vec3& origin, const Vec3& fwd) :
+        fov(fov), origin(origin), fwd(fwd)
     {
         UpdateRotation();
     }
@@ -75,7 +75,7 @@ struct Light
     double intensity;
     Color col;
 
-    Light(double intensity, Color col) :
+    Light(double intensity, const Color& col) :
         intensity(intensity), col(col)
     {}
 
@@ -89,7 +89,7 @@ struct Light
         return std::numeric_limits<double>::max();
     }
 
-    virtual double GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const
+    virtual double GetIntensity(const Ray& lightray, const Vec3& surfaceNormal) const
     {
         return intensity * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
@@ -99,7 +99,7 @@ struct GlobalLight : Light
 {
     Vec3 normal;
 
-    GlobalLight(Vec3 normal, double intensity, Color col) :
+    GlobalLight(const Vec3& normal, double intensity, const Color& col) :
         Light(intensity, col), normal(normal)
     {
         this->normal.Normalize();
@@ -115,7 +115,7 @@ struct GlobalLight : Light
         return std::numeric_limits<double>::max();
     }
 
-    double GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
+    double GetIntensity(const Ray& lightray, const Vec3& surfaceNormal) const override
     {
         return intensity * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
@@ -123,26 +123,26 @@ struct GlobalLight : Light
 
 struct PointLight : Light
 {
-    Vec3 pos;
+    Vec3 origin;
     double falloff;
 
-    PointLight(Vec3 pos, double falloff, double intensity, Color col) :
-        Light(intensity, col), pos(pos), falloff(falloff)
+    PointLight(const Vec3& origin, double falloff, double intensity, const Color& col) :
+        Light(intensity, col), origin(origin), falloff(falloff)
     {}
 
     Vec3 GetRelativePos(const Vec3& objPos) const override
     {
-        return pos - objPos;
+        return origin - objPos;
     }
 
     double GetDistSqr(const Vec3& objPos) const override
     {
-        return (pos - objPos).MagSqr();
+        return (origin - objPos).MagSqr();
     }
 
-    double GetIntensity(const Ray& lightray, Vec3 surfaceNormal) const override
+    double GetIntensity(const Ray& lightray, const Vec3& surfaceNormal) const override
     {
-        return (intensity / (pos - lightray.pos).MagSqr()) * surfaceNormal.Dot(lightray.dir) * 2.0;
+        return (intensity / (origin - lightray.origin).MagSqr()) * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
 };
 
@@ -151,7 +151,7 @@ struct Shape
 {
     Material mat;
 
-    Shape(Material mat) :
+    Shape(const Material& mat) :
         mat(mat)
     {}
 
@@ -161,11 +161,11 @@ struct Shape
     }
 };
 
-struct Cube : Shape
+struct AABB : Shape
 {
     Vec3 min, max;
 
-    Cube(Vec3 min, Vec3 max, Material mat) :
+    AABB(const Vec3& min, const Vec3& max, const Material& mat) :
         Shape(mat), min(min), max(max)
     {}
 
@@ -173,20 +173,20 @@ struct Cube : Shape
     {
         Vec3 inv_dir = ray.InverseDir();
 
-        double tx1 = (min.x - ray.pos.x) * inv_dir.x;
-        double tx2 = (max.x - ray.pos.x) * inv_dir.x;
+        double tx1 = (min.x - ray.origin.x) * inv_dir.x;
+        double tx2 = (max.x - ray.origin.x) * inv_dir.x;
 
         double tmin = std::min(tx1, tx2);
         double tmax = std::max(tx1, tx2);
 
-        double ty1 = (min.y - ray.pos.y) * inv_dir.y;
-        double ty2 = (max.y - ray.pos.y) * inv_dir.y;
+        double ty1 = (min.y - ray.origin.y) * inv_dir.y;
+        double ty2 = (max.y - ray.origin.y) * inv_dir.y;
 
         tmin = std::max(tmin, std::min(ty1, ty2));
         tmax = std::min(tmax, std::max(ty1, ty2));
 
-        double tz1 = (min.z - ray.pos.z) * inv_dir.z;
-        double tz2 = (max.z - ray.pos.z) * inv_dir.z;
+        double tz1 = (min.z - ray.origin.z) * inv_dir.z;
+        double tz2 = (max.z - ray.origin.z) * inv_dir.z;
 
         tmin = std::max(tmin, std::min(tz1, tz2));
         tmax = std::min(tmax, std::max(tz1, tz2));
@@ -196,20 +196,20 @@ struct Cube : Shape
         if (hit != nullptr)
         {
             hit->len = tmin;
-            hit->pos = ray.pos + (ray.dir * tmin);
+            hit->origin = ray.origin + (ray.dir * tmin);
             hit->target = (void*)this;
 
-            if (abs(hit->pos.x - min.x) < MINVAL)
+            if (abs(hit->origin.x - min.x) < MINVAL)
                 hit->normal = Vec3(-1, 0, 0);
-            else if (abs(hit->pos.x - max.x) < MINVAL)
+            else if (abs(hit->origin.x - max.x) < MINVAL)
                 hit->normal = Vec3(1, 0, 0);
-            else if (abs(hit->pos.y - min.y) < MINVAL)
+            else if (abs(hit->origin.y - min.y) < MINVAL)
                 hit->normal = Vec3(0, -1, 0);
-            else if (abs(hit->pos.y - max.y) < MINVAL)
+            else if (abs(hit->origin.y - max.y) < MINVAL)
                 hit->normal = Vec3(0, 1, 0);
-            else if (abs(hit->pos.z - min.z) < MINVAL)
+            else if (abs(hit->origin.z - min.z) < MINVAL)
                 hit->normal = Vec3(0, 0, -1);
-            else if (abs(hit->pos.z - max.z) < MINVAL)
+            else if (abs(hit->origin.z - max.z) < MINVAL)
                 hit->normal = Vec3(0, 0, 1);
         }
 
@@ -217,18 +217,125 @@ struct Cube : Shape
     }
 };
 
+struct OBB : Shape
+{
+    Vec3 center;
+    Vec3 axes[3];
+    double halfLengths[3];
+
+    OBB(const Vec3& c, const Vec3& xA, const Vec3& yA, const Vec3& zA, const Material& mat) :
+        Shape(mat),
+        center(c),
+        axes{xA, yA, zA},
+        halfLengths{xA.Mag(), yA.Mag(), zA.Mag()}
+    {
+        axes[0].Normalize();
+        axes[1].Normalize();
+        axes[2].Normalize();
+
+        if (abs(abs(axes[0].Dot(axes[1].Cross(axes[2]))) - 1.0) > MINVAL)
+        {
+            std::cout << "Warning: Provided base vectors in OBB constructor are not orthogonal. Substituting with cross of x-axis.\n";
+
+            Vec3 xyCross = axes[0].Cross(axes[1]);
+            double zSign = (axes[2].Dot(xyCross) > 0.0) ? 1.0 : -1.0;
+            axes[2] = xyCross * zSign;
+            axes[2].Normalize();
+
+            Vec3 xzCross = axes[0].Cross(axes[2]);
+            double ySign = (axes[1].Dot(xzCross) > 0.0) ? 1.0 : -1.0;
+            axes[1] = xzCross * ySign;
+            axes[1].Normalize();
+        }
+    }
+
+    bool RayIntersect(const Ray& ray, Hit* hit) const override
+    {
+        double
+            min = std::numeric_limits<double>::min(),
+            max = std::numeric_limits<double>::max();
+
+        Vec3 
+            p = center - ray.origin,
+            nMin = Vec3(),
+            nMax = Vec3();
+
+        for (int i = 0; i < 3; i++)
+        {
+            Vec3 axis = axes[i];
+            double halfLength = halfLengths[i];
+
+            double e = axis.Dot(p);
+            double f = axis.Dot(ray.dir);
+
+            if (abs(f) > MINVAL)
+            {
+                Vec3 tnMin = axis;
+                Vec3 tnMax = axis * -1.0;
+
+                double
+                    t0 = (e + halfLength) / f,
+                    t1 = (e - halfLength) / f;
+
+                if (t0 > t1)
+                {
+                    std::swap(t0, t1);
+                    tnMin = tnMax;
+                    tnMax = axis;
+                }
+
+                if (t0 > min)
+                {
+                    min = t0;
+                    nMin = tnMin;
+                }
+                if (t1 < max)
+                {
+                    max = t1;
+                    nMax = tnMax;
+                }
+
+                if (min > max)	return false;
+                if (max < 0.0)	return false;
+            }
+            else if (-e - halfLength > 0.0 || -e + halfLength < 0.0)
+                return false;
+        }
+
+        if (hit != nullptr)
+        {
+            if (min > 0.0)
+            {
+                hit->len = min;
+                hit->normal = nMin;
+            }
+            else
+            {
+                hit->len = max;
+                hit->normal = nMax;
+            }
+
+            hit->origin = ray.origin + ray.dir * hit->len;
+            hit->normal.Normalize();
+            hit->target = (void*)this;
+        }
+
+        return true;
+    }
+};
+
 struct Sphere : Shape
 {
     double rad;
-    Vec3 pos;
+    Vec3 origin;
 
-    Sphere(double rad, Vec3 pos, Material mat) :
-        Shape(mat), rad(rad), pos(pos)
+    Sphere(double rad, Vec3 origin, Material mat) :
+        Shape(mat), rad(rad), origin(origin)
     {}
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
-        Vec3 oc = ray.pos - pos;
+        Vec3 oc = ray.origin - origin;
         double b = oc.Dot(ray.dir);
 
         Vec3 qc = oc - ray.dir * b;
@@ -258,9 +365,8 @@ struct Sphere : Shape
         if (hit != nullptr)
         {
             hit->len = t0;
-            hit->pos = ray.pos + ray.dir * hit->len;
-            hit->normal = (hit->pos - pos) / rad;
-            //hit->normal.Normalize();
+            hit->origin = ray.origin + ray.dir * hit->len;
+            hit->normal = (hit->origin - origin) / rad;
             hit->target = (void*)this;
         }
         return true;
@@ -290,7 +396,7 @@ struct Tri : Shape
         if (a > -MINVAL && a < MINVAL)
             return false;
 
-        Vec3 s = ray.pos - v0;
+        Vec3 s = ray.origin - v0;
         double f = 1.0 / a;
         double u = f * s.Dot(h);
 
@@ -310,7 +416,7 @@ struct Tri : Shape
             if (hit != nullptr)
             {
                 hit->len = t;
-                hit->pos = ray.pos + ray.dir * t;
+                hit->origin = ray.origin + ray.dir * t;
                 hit->normal = edge1.Cross(edge2);
                 hit->normal.Normalize();
                 hit->target = (void*)this;
@@ -323,10 +429,10 @@ struct Tri : Shape
 
 struct Plane : Shape
 {
-    Vec3 pos, normal;
+    Vec3 origin, normal;
 
-    Plane(Vec3 pos, Vec3 normal, Material mat) :
-        Shape(mat), pos(pos), normal(normal)
+    Plane(Vec3 origin, Vec3 normal, Material mat) :
+        Shape(mat), origin(origin), normal(normal)
     {
         this->normal.Normalize();
     }
@@ -338,18 +444,18 @@ struct Plane : Shape
         if (a >= 0)
             return false;
 
-        if (normal.Dot(pos - ray.pos) >= 0)
+        if (normal.Dot(origin - ray.origin) >= 0)
             return false;
 
         double
             b = normal.Dot(ray.dir),
-            d = normal.Dot(pos),
-            t = (d - normal.Dot(ray.pos)) / b;
+            d = normal.Dot(origin),
+            t = (d - normal.Dot(ray.origin)) / b;
 
         if (hit != nullptr)
         {
             hit->len = t;
-            hit->pos = ray.pos + ray.dir * t;
+            hit->origin = ray.origin + ray.dir * t;
             hit->normal = normal;
             hit->target = (void*)this;
         }

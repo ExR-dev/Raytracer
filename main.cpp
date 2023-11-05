@@ -84,15 +84,15 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
             for (int j = 0; j < scene.lightCount; j++)
             {
                 Light* currLight = scene.lightPtrs[j].get();
-                Vec3 dirToLight = currLight->GetRelativePos(bestHit.pos);
+                Vec3 dirToLight = currLight->GetRelativePos(bestHit.origin);
                 dirToLight.Normalize();
 
                 if (bestHit.normal.Dot(dirToLight) <= 0)
                     continue;
 
-                double distSqr = currLight->GetDistSqr(bestHit.pos);
+                double distSqr = currLight->GetDistSqr(bestHit.origin);
 
-                Ray lightRay(bestHit.pos, dirToLight);
+                Ray lightRay(bestHit.origin, dirToLight);
                 Hit lightHit = {};
 
                 bool isBlocked = false;
@@ -128,7 +128,7 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
                 Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
 
                 Vec3 bounceDir = randDir.VLerp(reflectDir, ((Shape*)bestHit.target)->mat.reflectivity);
-                Ray bounceRay(bestHit.pos, bounceDir);
+                Ray bounceRay(bestHit.origin, bounceDir);
                 Hit bounceHit = {0.0, Vec3(), Vec3(), bestHit.target};
 
                 SurfaceHitInfo bounceSurface = CastRayInScene(scene, bounceRay, bounceHit, bounce + 1);
@@ -167,7 +167,7 @@ int main()
         { 0.0, 0.0, 1.0 }
     );
 
-    Scene scene(true, true, 4, 0, Color());
+    Scene scene(true, true, 2, 0, Color());
 
 
     std::shared_ptr<Light> lightPtrs[] = {
@@ -229,7 +229,7 @@ int main()
         )),
     };*/
     std::shared_ptr<Shape> shapePtrs[] = {
-        std::make_shared<Cube>(Cube( // Light
+        std::make_shared<AABB>(AABB( // Light
             Vec3(1.2, 3.95, 1.0),
             Vec3(3.8, 4.00, 2.5),
             Material(Color(1,1,1), 0.0, Color(1,1,1), 2.2)
@@ -241,11 +241,20 @@ int main()
             Vec3(1.25, 2.0, 1.75),
             Material(Color(1.0, 1.0, 1.0), 1.0, Color(), 0.0)
         )),*/
-        std::make_shared<Sphere>(Sphere(
+        /*std::make_shared<Sphere>(Sphere(
             1.0,
             Vec3(2.5, 2.0, 1.75),
             Material(Color(0.9, 0.9, 0.9), 0.75, Color(1,1,1), 0.025)
+        )),*/
+
+        std::make_shared<OBB>(OBB(
+            Vec3(2.5, 2.0, 1.75),
+            Vec3(0.4, 0.2, -0.1),
+            Vec3(-0.7, 0.4, 0.1),
+            Vec3(1.0, 0.3, 0.25),
+            Material(Color(1.0, 0.7, 0.5), 0.5, Color(1,1,0), 0.05)
         )),
+
 
 
         std::make_shared<Tri>(Tri( // Floor
@@ -339,8 +348,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 480,
-        h = 270,
+        w = 320,
+        h = 180,
         dim = w * h;
 
     bool cumulativeLighting = true;
@@ -410,26 +419,26 @@ int main()
 
         if (!disableScanSpeed)
         {
-            if (dT > 0.3f)
+            if (dT > 0.3)
                 scanSpeed -= w * 32;
-            else if (dT > 0.2f)
+            else if (dT > 0.2)
                 scanSpeed -= w * 24;
-            else if (dT > 0.15f)
+            else if (dT > 0.15)
                 scanSpeed -= w * 12;
-            else if (dT > 0.125f)
+            else if (dT > 0.125)
                 scanSpeed -= w * 4;
-            else if (dT > 0.11f)
+            else if (dT > 0.11)
                 scanSpeed -= w * 2;
-            else if (dT > 0.09f)
+            else if (dT > 0.09)
                 scanSpeed -= w;
 
-            else if (dT < 0.07f)
+            else if (dT < 0.07)
                 scanSpeed += w / 2;
-            else if (dT < 0.06f)
+            else if (dT < 0.06)
                 scanSpeed += w;
-            else if (dT < 0.04f)
+            else if (dT < 0.04)
                 scanSpeed += w * 2;
-            else if (dT < 0.02f)
+            else if (dT < 0.02)
                 scanSpeed += w * 4;
 
             scanSpeed = std::max(1u, std::min(scanSpeed, dim));
@@ -538,19 +547,19 @@ int main()
         if (giveControl)
         {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-                cam.pos += cam.fwd * 4.0f * dT;
+                cam.origin += cam.fwd * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-                cam.pos -= cam.fwd * 4.0f * dT;
+                cam.origin -= cam.fwd * 4.0f * dT;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-                cam.pos += cam.right * 4.0f * dT;
+                cam.origin += cam.right * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-                cam.pos -= cam.right * 4.0f * dT;
+                cam.origin -= cam.right * 4.0f * dT;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
-                cam.pos += cam.up * 4.0f * dT;
+                cam.origin += cam.up * 4.0f * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
-                cam.pos -= cam.up * 4.0f * dT;
+                cam.origin -= cam.up * 4.0f * dT;
 
             deltas = fixed - sf::Mouse::getPosition();
             if (deltas != sf::Vector2i(0, 0))
@@ -589,7 +598,7 @@ int main()
         int drawStart = currPix;
         int drawEnd = std::min(dim, currPix + scanSpeed);
 
-        #pragma omp parallel for num_threads(6)
+        #pragma omp parallel for num_threads(3)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -615,7 +624,7 @@ int main()
             Vec3 pixDir = cam.right * dirLocal.x + cam.up * dirLocal.y + cam.fwd * dirLocal.z;
             pixDir.Normalize();
 
-            Ray ray(cam.pos, pixDir);
+            Ray ray(cam.origin, pixDir);
             Hit hit = {};
 
             SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit);
