@@ -59,11 +59,12 @@ struct Cam
 
     void UpdateRotation()
     {
-        right = fwd.Cross({0, -1, 0});
-        up = fwd.Cross(right);
-
         fwd.Normalize();
+
+        right = fwd.Cross({0, -1, 0});
         right.Normalize();
+
+        up = fwd.Cross(right);
         up.Normalize();
     }
 };
@@ -233,10 +234,10 @@ struct Sphere : Shape
         Vec3 qc = oc - ray.dir * b;
         double h = rad * rad - qc.Dot(qc);
 
-        if (h < 0)
+        if (h < -MINVAL)
             return false;
 
-        h = 1.0 / InverseSqrt(h);
+        h = sqrt(std::max(0.0, h));
 
         double
             t0 = -b - h,
@@ -245,10 +246,10 @@ struct Sphere : Shape
         if (t0 > t1)
             std::swap(t0, t1);
 
-        if (t0 < 0)
+        if (t0 < 0.0)
         {
             t0 = t1;
-            if (t0 < 0)
+            if (t0 < 0.0)
                 return false;
         }
 
@@ -274,31 +275,28 @@ struct Tri : Shape
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
-        Vec3 edge1, edge2, h, s, q;
-        double a, f, u, v;
-
-        edge1 = v1 - v0;
-        edge2 = v2 - v0;
+        Vec3 edge1 = v1 - v0;
+        Vec3 edge2 = v2 - v0;
 
         Vec3 kk = edge1.Cross(edge2);
         if (kk.Dot(ray.dir) >= 0)
             return false;
 
-        h = ray.dir.Cross(edge2);
-        a = edge1.Dot(h);
+        Vec3 h = ray.dir.Cross(edge2);
+        double a = edge1.Dot(h);
 
         if (a > -MINVAL && a < MINVAL)
             return false;
 
-        f = 1.0 / a;
-        s = ray.pos - v0;
-        u = f * s.Dot(h);
+        Vec3 s = ray.pos - v0;
+        double f = 1.0 / a;
+        double u = f * s.Dot(h);
 
         if (u < 0 || u > 1)
             return false;
 
-        q = s.Cross(edge1);
-        v = f * ray.dir.Dot(q);
+        Vec3 q = s.Cross(edge1);
+        double v = f * ray.dir.Dot(q);
 
         if (v < 0 || u + v > 1)
             return false;

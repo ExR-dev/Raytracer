@@ -6,37 +6,11 @@
 
 #define VecNum double
 
-constexpr double PI = 3.141592653;
-constexpr double MINVAL = 0.00001;
+constexpr double PI = 3.14159265358979323;
+constexpr double MINVAL = 0.000000001;
 constexpr double MAXVAL = 1000000000.0;
 
 
-
-inline float InverseSqrt(float number)
-{
-    long i;
-    float x2, y;
-    const float threehalfs = 1.5f;
-
-    x2 = number * 0.5f;
-    y = number;
-    i = *(long*)&y;
-    i = 0x5f3759df - (i >> 1);
-    y = *(float*)&i;
-    y = y * (threehalfs - (x2 * y * y));
-    return y;
-}
-
-inline double InverseSqrt(double number)
-{
-    double y = number;
-    double x2 = y * 0.5;
-    std::int64_t i = *(std::int64_t*)&y;
-    i = 0x5fe6eb50c7b537a9 - (i >> 1);
-    y = *(double*)&i;
-    y = y * (1.5 - (x2 * y * y));
-    return y;
-}
 
 VecNum Lerp(VecNum p0, VecNum p1, VecNum t)
 {
@@ -164,7 +138,8 @@ struct Vec3
     }
     Vec3& Normalize()
     {
-        *(this) *= InverseSqrt(MagSqr());
+        //*(this) *= InverseSqrt(MagSqr());
+        *(this) *= 1.0 / Mag();
         return *(this);
     }
 
@@ -199,7 +174,7 @@ struct Vec3
 
     inline Vec3 Reflect(const Vec3 normal) const
     {
-        Vec3 r = *this - normal * (Dot(normal) * 2.0);
+        Vec3 r = (*this) - normal * (Dot(normal) * 2.0);
 
         return r;
     }
