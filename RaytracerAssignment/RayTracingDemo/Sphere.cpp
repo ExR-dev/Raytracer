@@ -1,7 +1,6 @@
 #include "Sphere.h"
 
-#include <cmath>
-#include <algorithm>
+#include <iostream>
 
 
 Sphere::Sphere(const Vector3D& colour, const Vector3D c, double r) : 

@@ -1,6 +1,5 @@
 #include "Plane.h"
 
-#include <cmath>
 
 
 Plane::Plane(const Vector3D & colour, const Vector3D & p, const Vector3D & n) : 

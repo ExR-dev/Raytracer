@@ -17,10 +17,10 @@ struct Scene
 
     Color skyCol;
 
-    std::shared_ptr<Light>* lightPtrs;
+    Light** lightPtrs;
     int lightCount;
 
-    std::shared_ptr<Shape>* shapePtrs;
+    Shape** shapePtrs;
     int shapeCount;
 
     Scene(bool disableLighting, int lightingType, int maxBounces, int raySplits, Color skyCol) :
@@ -42,17 +42,16 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
         Color()
     );
 
+    if (bounce > 0)
+        ray.origin += ray.dir * MINVAL;
+
     Hit bestHit = {};
     double len = 0.0;
     bool hasHitSomething = false;
 
     for (int j = 0; j < scene.shapeCount; j++)
     {
-        Shape* currShape = scene.shapePtrs[j].get();
-
-        if (hit.target != nullptr)
-            if (((Shape*)hit.target) == currShape)
-                continue;
+        Shape* currShape = scene.shapePtrs[j];
 
         Hit tempHit = {};
         if (currShape->RayIntersect(ray, &tempHit))
@@ -83,7 +82,7 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
         {
             for (int j = 0; j < scene.lightCount; j++)
             {
-                Light* currLight = scene.lightPtrs[j].get();
+                Light* currLight = scene.lightPtrs[j];
                 Vec3 dirToLight = currLight->GetRelativePos(bestHit.origin);
                 dirToLight.Normalize();
 
@@ -98,9 +97,7 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
                 bool isBlocked = false;
                 for (int k = 0; k < scene.shapeCount; k++)
                 {
-                    Shape* currShape = scene.shapePtrs[k].get();
-                    if (currShape == hitShape)
-                        continue;
+                    Shape* currShape = scene.shapePtrs[k];
 
                     if (currShape->RayIntersect(lightRay, &lightHit))
                         if ((lightHit.len * lightHit.len) < distSqr)
@@ -162,185 +159,122 @@ int main()
 {
     // Build Scene
     Cam cam(
-        80.0f,
+        80.0f, true,
         Vec3(2.5, 2.0, -1.0),
         { 0.0, 0.0, 1.0 }
     );
 
-    Scene scene(true, true, 2, 0, Color());
+    Scene scene(true, true, 8, 0, Color());
 
 
-    std::shared_ptr<Light> lightPtrs[] = {
-        /*std::make_shared<GlobalLight>(GlobalLight(
-            Vec3(-1, -1, -1), 1.0, scene.skyCol
-        )),*/
-        /*std::make_shared<PointLight>(PointLight(
-            Vec3(2.5, 3.9, 1.75),
-            0.0, 0.33, Color(1,1,1)
-        )),*/
-        0
+    Light* lightPtrs[] = {
+        new GlobalLight(
+            Vec3(0, -1, 0), 0.0, scene.skyCol
+        ),
     };
-    int lightCount = 0; //sizeof(lightPtrs) / sizeof(std::shared_ptr<Light>);
+    int lightCount = sizeof(lightPtrs) / sizeof(Light*);
 
     scene.lightPtrs = lightPtrs;
     scene.lightCount = lightCount;
 
 
-    /*std::shared_ptr<Shape> shapePtrs[] = {
-        std::make_shared<Plane>(Plane(
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(0.0, 1.0, 0.0),
-            Material(Color(1.0, 1.0, 1.0))
-        )),
+    Shape* shapePtrs[] = {
+        new AABB( // Light
+            Vec3(0.2, 3.98, 0.2),
+            Vec3(4.8, 4.00, 3.3),
+            Material(Color(0,0,0), 0.0, Color(1,1,1), 0.9)
+        ),
 
 
-        std::make_shared<Sphere>(Sphere(
-            6.0,
-            Vec3(-3.875, 6.0, 24.0),
-            Material(Color(1, 1, 1), 5.0)
-        )),
+        new Sphere(
+            1.0, Vec3(1.5, 2.0, 1.75),
+            Material(Color(1.0, 1.0, 1.0), 1.0, Color(1.0,1.0,1.0), 0.00)
+        ),
+        new Sphere(
+            1.0, Vec3(3.5, 2.0, 1.75),
+            Material(Color(1.0, 1.0, 1.0), 1.0, Color(1.0,1.0,1.0), 0.00)
+        ),
 
 
-        std::make_shared<Sphere>(Sphere(
-            3.0,
-            Vec3(-3.875, 2.0, -6.0),
-            Material(Color(1, 1, 1), 1.0, Color(), 0.0)
-        )),
-
-        std::make_shared<Sphere>(Sphere(
-            2.0,
-            Vec3(0.0, 2.0, 0.0),
-            Material(Color(1, 1, 1))
-        )),
-        std::make_shared<Sphere>(Sphere(
-            1.5,
-            Vec3(-3.5, 1.5, 0.0),
-            Material(Color(1, 0, 0))
-        )),
-        std::make_shared<Sphere>(Sphere(
-            1.0,
-            Vec3(-6.0, 1.0, 0.0),
-            Material(Color(0, 1, 0), 0.5, Color(), 0.0)
-        )),
-        std::make_shared<Sphere>(Sphere(
-            0.75,
-            Vec3(-7.75, 0.75, 0.0),
-            Material(Color(0, 0, 1))
-        )),
-    };*/
-    std::shared_ptr<Shape> shapePtrs[] = {
-        std::make_shared<AABB>(AABB( // Light
-            Vec3(1.2, 3.95, 1.0),
-            Vec3(3.8, 4.00, 2.5),
-            Material(Color(1,1,1), 0.0, Color(1,1,1), 2.2)
-        )),
-
-
-        /*std::make_shared<Sphere>(Sphere(
-            0.75,
-            Vec3(1.25, 2.0, 1.75),
-            Material(Color(1.0, 1.0, 1.0), 1.0, Color(), 0.0)
-        )),*/
-        /*std::make_shared<Sphere>(Sphere(
-            1.0,
-            Vec3(2.5, 2.0, 1.75),
-            Material(Color(0.9, 0.9, 0.9), 0.75, Color(1,1,1), 0.025)
-        )),*/
-
-        std::make_shared<OBB>(OBB(
-            Vec3(2.5, 2.0, 1.75),
-            Vec3(0.4, 0.2, -0.1),
-            Vec3(-0.7, 0.4, 0.1),
-            Vec3(1.0, 0.3, 0.25),
-            Material(Color(1.0, 0.7, 0.5), 0.5, Color(1,1,0), 0.05)
-        )),
-
-
-
-        std::make_shared<Tri>(Tri( // Floor
+        new Tri( // Floor
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 0.0, 0.0),
-            Material(Color(0.2, 0.2, 1.0), 0.0, Color(), 0.0)
-        )),
-        std::make_shared<Tri>(Tri(
+            Material(Color(0.7, 0.7, 0.8), 0.15, Color(), 0.0)
+        ),
+        new Tri(
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.2, 0.2, 1.0), 0.0, Color(), 0.0)
-        )),
+            Material(Color(0.7, 0.7, 0.8), 0.15, Color(), 0.0)
+        ),
 
-
-        std::make_shared<Tri>(Tri( // Roof
+        new Tri( // Roof
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 3.5),
-            Material(Color(0.25, 0.25, 0.4), 0.0, Color(), 0.0)
-        )),
-        std::make_shared<Tri>(Tri(
+            Material(Color(0.075, 0.075, 0.075), 1.0, Color(), 0.0)
+        ),
+        new Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.25, 0.25, 0.4), 0.0, Color(), 0.0)
-        )),
+            Material(Color(0.075, 0.075, 0.075), 1.0, Color(), 0.0)
+        ),
 
-
-        std::make_shared<Tri>(Tri( // Front
+        new Tri( // Front
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
-        )),
-        std::make_shared<Tri>(Tri(
+            Material(Color(1.0, 0.7, 0.4), 0.0, Color(), 0.0)
+        ),
+        new Tri(
             Vec3(5.0, 4.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 0.0),
-            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
-        )),
+            Material(Color(1.0, 0.7, 0.4), 0.0, Color(), 0.0)
+        ),
 
-
-        std::make_shared<Tri>(Tri( // Left
+        new Tri( // Left
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
-        )),
-        std::make_shared<Tri>(Tri(
+            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+        ),
+        new Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
-            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
-        )),
+            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+        ),
 
-
-        std::make_shared<Tri>(Tri( // Back
+        new Tri( // Back
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
-            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
-        )),
-        std::make_shared<Tri>(Tri(
+            Material(Color(0.4, 0.7, 1.0), 0.0, Color(), 0.0)
+        ),
+        new Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(1.0, 0.2, 0.2), 0.0, Color(), 0.0)
-        )),
+            Material(Color(0.4, 0.7, 1.0), 0.0, Color(), 0.0)
+        ),
 
-
-        std::make_shared<Tri>(Tri( // Right
+        new Tri( // Right
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
-        )),
-        std::make_shared<Tri>(Tri(
+            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+        ),
+        new Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
-            Material(Color(0.2, 1.0, 0.2), 0.0, Color(), 0.0)
-        )),
+            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+        ),
     };
-    int shapeCount = sizeof(shapePtrs) / sizeof(std::shared_ptr<Shape>);
+    int shapeCount = sizeof(shapePtrs) / sizeof(Shape*);
 
     scene.shapePtrs = shapePtrs;
     scene.shapeCount = shapeCount;
@@ -353,7 +287,7 @@ int main()
         dim = w * h;
 
     bool cumulativeLighting = true;
-    int cumulativeFrameCount = 0;
+    unsigned int cumulativeFrameCount = 0;
 
     Color* frame = new Color[dim];
     for (int i = 0; i < dim; i++)
@@ -378,6 +312,7 @@ int main()
     unsigned int scanSpeed = dim / 8;
     unsigned int currPix = 0;
 
+
     sf::Image img;
     sf::Texture tex;
     sf::Sprite sprite;
@@ -396,19 +331,17 @@ int main()
 
     bool giveControl = true;
     bool pauseSampling = false;
+    unsigned int perPixelSamples = 1;
 
 
     {
         scene.disableLighting = false;
-
+        cumulativeLighting = true; 
         randomizeSampleDir = true;
-
         disableScanSpeed = true;
         scanSpeed = dim;
-
         giveControl = false;
-
-        cumulativeLighting = true;
+        perPixelSamples = 2;
     }
 
     while (window.isOpen())
@@ -469,25 +402,15 @@ int main()
             if (event.type == sf::Event::KeyPressed)
             {
                 if (event.key.code == sf::Keyboard::L)
-                {
                     scene.disableLighting = !scene.disableLighting;
-
-                    if (scene.disableLighting)
-                    {
-                        currPix = 0;
-                        cumulativeFrameCount = 0;
-                        cumulativeLighting = false;
-                    }
-                }
                 else if (event.key.code == sf::Keyboard::E)
-                {
-                    scene.lightingType = ++scene.lightingType % 3;
-
-                }
+                    scene.lightingType = (scene.lightingType + 1) % 3;
                 else if (event.key.code == sf::Keyboard::R)
                     randomizeSampleDir = !randomizeSampleDir;
                 else if (event.key.code == sf::Keyboard::P)
                     pauseSampling = !pauseSampling;
+                else if (event.key.code == sf::Keyboard::O)
+                    cam.perspective = !cam.perspective;
                 else if (event.key.code == sf::Keyboard::C)
                 {
                     currPix = 0;
@@ -502,41 +425,58 @@ int main()
                 }
                 else if (event.key.code == sf::Keyboard::Q)
                 {
+                    Color *tempFrame = new Color[dim];
 
-                    for (int y = 1; y < h - 1; y++)
+                    for (int y = 0; y < h; y++)
                     {
-                        for (int x = 1; x < w - 1; x++)
+                        for (int x = 0; x < w; x++)
                         {
-                            if (x == 0 || x == w - 1)
-                                continue;
-                            if (y == 0 || y == h - 1)
-                                continue;
+                            Color avgCol = frame[x + y * w];
+                            int samples = 1;
 
-                            int
-                                tl = (x - 1) + (y - 1) * w,
-                                tm = (x + 0) + (y - 1) * w,
-                                tr = (x + 1) + (y - 1) * w,
-                                ml = (x - 1) + (y + 0) * w,
-                                mm = (x + 0) + (y + 0) * w,
-                                mr = (x + 1) + (y + 0) * w,
-                                bl = (x - 1) + (y + 1) * w,
-                                bm = (x + 0) + (y + 1) * w,
-                                br = (x + 1) + (y + 1) * w;
+                            if (y != 0)
+                            {
+                                avgCol += frame[x + (y - 1) * w];
+                                samples++;
+                            }
 
-                            Color avgCol =
-                                frame[tl] + frame[tm] + frame[tr] +
-                                frame[ml] + frame[mm] + frame[mr] +
-                                frame[bl] + frame[bm] + frame[br];
-                            avgCol /= 9.0;
-                            avgCol *= 9.0;
-                            avgCol /= cumulativeFrameCount;
+                            if (y != h - 1)
+                            {
+                                avgCol += frame[x + (y + 1) * w];
+                                samples++;
+                            }
 
-                            frame[mm] = avgCol;
-
+                            avgCol /= (double)samples;
+                            tempFrame[x + y * w] = avgCol;
                         }
                     }
 
-                    cumulativeFrameCount = 8;
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int x = 0; x < w; x++)
+                        {
+                            Color avgCol = tempFrame[x + y * w];
+                            int samples = 1;
+
+                            if (x != 0)
+                            {
+                                avgCol += frame[(x - 1) + y * w];
+                                samples++;
+                            }
+
+                            if (x != w - 1)
+                            {
+                                avgCol += frame[(x + 1) + y * w];
+                                samples++;
+                            }
+
+                            avgCol /= (double)samples;
+                            frame[x + y * w] = avgCol;
+                        }
+                    }
+
+                    delete[] tempFrame;
+                    cumulativeFrameCount = 600;
                 }
             }
         }
@@ -547,19 +487,19 @@ int main()
         if (giveControl)
         {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-                cam.origin += cam.fwd * 4.0f * dT;
+                cam.origin += cam.fwd * 4.0 * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-                cam.origin -= cam.fwd * 4.0f * dT;
+                cam.origin -= cam.fwd * 4.0 * dT;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-                cam.origin += cam.right * 4.0f * dT;
+                cam.origin += cam.right * 4.0 * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-                cam.origin -= cam.right * 4.0f * dT;
+                cam.origin -= cam.right * 4.0 * dT;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
-                cam.origin += cam.up * 4.0f * dT;
+                cam.origin += cam.up * 4.0 * dT;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
-                cam.origin -= cam.up * 4.0f * dT;
+                cam.origin -= cam.up * 4.0 * dT;
 
             deltas = fixed - sf::Mouse::getPosition();
             if (deltas != sf::Vector2i(0, 0))
@@ -568,14 +508,21 @@ int main()
             if (deltas.y != 0)
             {
                 float sign = (float)deltas.y * -0.001f;
+                int verticality = (sign > 0) ? -1 : 1;
+
+                Vec3 offAngle = cam.fwd - Vec3(0, verticality, 0);
+                offAngle.Normalize();
 
                 cam.fwd = (
                     cam.fwd * cos(sign) +
                     cam.right.Cross(cam.fwd) * sin(sign) +
                     cam.right * cam.right.Dot(cam.fwd) * (1.0f - cos(sign))
                     );
+
+                if (offAngle.Dot(cam.fwd) <= 0)
+                    cam.fwd = Vec3(0, verticality, 0) + offAngle * MINVAL * 100.0;
             }
-            if (deltas.x != 0)
+            if (deltas.x != 0 && abs(cam.fwd.y) != 1.0)
             {
                 float sign = (float)deltas.x * -0.001f;
 
@@ -598,7 +545,7 @@ int main()
         int drawStart = currPix;
         int drawEnd = std::min(dim, currPix + scanSpeed);
 
-        #pragma omp parallel for num_threads(3)
+        #pragma omp parallel for num_threads(2)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -608,54 +555,56 @@ int main()
                 x = i % w,
                 y = i / w;
 
-            double u, v;
-            if (randomizeSampleDir)
+            Color hitCol = Color();
+            for (unsigned int j = 0; j < perPixelSamples; j++)
             {
-                v = 1.0 - ((double)y + (RandNum() - 0.5) / 2.0) / (double)h;
-                u = ((double)x + (RandNum() - 0.5) / 2.0) / (double)w;
-            }
-            else
-            {
-                v = 1.0 - (double)y / (double)h;
-                u = (double)x / (double)w;
-            }
-
-            Vec3 dirLocal = botLeftLocal + Vec3(viewWidth * u, viewHeight * v, 0.0);
-            Vec3 pixDir = cam.right * dirLocal.x + cam.up * dirLocal.y + cam.fwd * dirLocal.z;
-            pixDir.Normalize();
-
-            Ray ray(cam.origin, pixDir);
-            Hit hit = {};
-
-            SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit);
-            Color hitCol = (hitSurface.surfaceColor * hitSurface.cumulativeLight) + hitSurface.surfaceEmission;
-            //hitCol.Clamp();
-            Color toRender = Color();
-
-            if (cumulativeLighting)
-            {
-                /*if (randomizeSampleDir)
+                double u, v;
+                if (randomizeSampleDir)
                 {
-                    double avgWeight = 1.0 / (double)(cumulativeFrameCount + 1);
-                    frame[i] = (frame[i] * (1.0 - avgWeight)) + (hitCol * avgWeight);
-                    toRender = frame[i];
+                    v = 1.0 - ((double)y + (RandNum() - 0.5) / 2.0) / (double)h;
+                    u = ((double)x + (RandNum() - 0.5) / 2.0) / (double)w;
                 }
                 else
                 {
-                    frame[i] += hitCol;
-                    cumulativeDivisor = (double)(cumulativeFrameCount + 1);
-                }*/
+                    v = 1.0 - (double)y / (double)h;
+                    u = (double)x / (double)w;
+                }
 
-                frame[i] += hitCol;
-                toRender = frame[i] / (double)(cumulativeFrameCount + 1);
+                Vec3
+                    pixPos = cam.origin,
+                    pixDir = cam.fwd;
+
+                if (cam.perspective)
+                {
+                    Vec3 dirLocal = botLeftLocal + Vec3(viewWidth * u, viewHeight * v, 0.0);
+                    pixDir = cam.right * dirLocal.x + cam.up * dirLocal.y + cam.fwd * dirLocal.z;
+                    pixDir.Normalize();
+                }
+                else
+                    pixPos += cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5));
+
+                Ray ray(pixPos, pixDir);
+                Hit hit = {};
+
+                SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit);
+                hitCol += (hitSurface.surfaceColor * hitSurface.cumulativeLight) + hitSurface.surfaceEmission;
+            }
+            hitCol /= perPixelSamples;
+
+            Color toRender = Color();
+            if (cumulativeLighting)
+            {
+                double avgWeight = 1.0 / (double)(cumulativeFrameCount + 1);
+                frame[i] = (frame[i] * (1.0 - avgWeight)) + (hitCol * avgWeight);
+                toRender = frame[i];
             }
             else
             {
                 frame[i] = hitCol;
                 toRender = frame[i];
             }
-
             toRender.Clamp();
+
             img.setPixel(x, y, {
                 (uint8_t)(toRender.r * 255.0), 
                 (uint8_t)(toRender.g * 255.0), 
@@ -679,13 +628,9 @@ int main()
     }
 
     for (int i = 0; i < shapeCount; i++)
-        shapePtrs[i].reset();
+        delete shapePtrs[i];
     for (int i = 0; i < lightCount; i++)
-        lightPtrs[i].reset();
-
-    //shapePtrs->reset();
-    //lightPtrs->reset();
+        delete lightPtrs[i];
     delete[] frame;
-
     return 0;
 }

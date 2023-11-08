@@ -12,16 +12,14 @@ constexpr double MAXVAL = 1000000000.0;
 
 
 
-VecNum Lerp(VecNum p0, VecNum p1, VecNum t)
+inline VecNum Lerp(VecNum p0, VecNum p1, VecNum t)
 {
     return (1.0 - t) * p0 + t * p1;
 }
 
-VecNum RandNum()
+inline VecNum RandNum()
 {
-    static std::mt19937 twister(std::time(0));
-    static std::uniform_real_distribution<VecNum> distr(0, 1);
-    return distr(twister);
+    return VecNum(rand()) / VecNum(RAND_MAX + 1);
 }
 
 
@@ -138,7 +136,6 @@ struct Vec3
     }
     Vec3& Normalize()
     {
-        //*(this) *= InverseSqrt(MagSqr());
         *(this) *= 1.0 / Mag();
         return *(this);
     }
@@ -180,30 +177,15 @@ struct Vec3
     }
 };
 
-
-Vec3 RandVec()
+inline Vec3 RandDir()
 {
-    static std::mt19937 twister(std::time(0));
-    static std::uniform_real_distribution<VecNum> distr(-1000, 1000);
-    return Vec3(distr(twister), distr(twister), distr(twister));
-}
+    Vec3 v;
 
-Vec3 RandDir()
-{
-    Vec3 v = Vec3(
-        RandNum() * 2.0 - 1.0,
-        RandNum() * 2.0 - 1.0,
-        RandNum() * 2.0 - 1.0
-    );
+    do      v = Vec3(RandNum(), RandNum(), RandNum());
+    while   (v.MagSqr() > 1.0);
 
-    while (v.MagSqr() > 1.0)
-    {
-        v = Vec3(
-            RandNum() * 2.0 - 1.0,
-            RandNum() * 2.0 - 1.0,
-            RandNum() * 2.0 - 1.0
-        );
-    }
+    v *= 2.0;
+    v -= Vec3(1, 1, 1);
 
     VecNum m = v.Mag();
 
@@ -212,6 +194,7 @@ Vec3 RandDir()
     else 
         return RandDir();
 }
+
 
 /*
 struct Vec4
@@ -761,7 +744,7 @@ struct Color
         b = std::max(0.0, std::min(b, 1.0));
         return *this;
     }
-    Color Clamped() const
+    inline Color Clamped() const
     {
         return {
             std::max(0.0, std::min(r, 1.0)),
@@ -770,7 +753,7 @@ struct Color
         };
     }
 
-    Color Max(const Color& c) const
+    inline Color Max(const Color& c) const
     {
         return {
             std::max(r, c.r),

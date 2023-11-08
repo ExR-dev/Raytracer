@@ -47,12 +47,15 @@ struct Hit
 struct Cam
 {
     float fov;
+    bool perspective;
+
     Vec3 
         origin, 
         fwd, right, up;
 
-    Cam(float fov, const Vec3& origin, const Vec3& fwd) :
-        fov(fov), origin(origin), fwd(fwd)
+
+    Cam(float fov, bool perspective, const Vec3& origin, const Vec3& fwd) :
+        fov(fov), perspective(perspective), origin(origin), fwd(fwd)
     {
         UpdateRotation();
     }
@@ -227,25 +230,31 @@ struct OBB : Shape
         Shape(mat),
         center(c),
         axes{xA, yA, zA},
-        halfLengths{xA.Mag(), yA.Mag(), zA.Mag()}
+        halfLengths{xA.Mag(), 0.0, 0.0}
     {
         axes[0].Normalize();
-        axes[1].Normalize();
-        axes[2].Normalize();
 
         if (abs(abs(axes[0].Dot(axes[1].Cross(axes[2]))) - 1.0) > MINVAL)
         {
-            std::cout << "Warning: Provided base vectors in OBB constructor are not orthogonal. Substituting with cross of x-axis.\n";
+            std::cout << "Warning: Provided base vectors in OBB constructor are not orthogonal. Substituting with normals of x-axis.\n";
 
-            Vec3 xyCross = axes[0].Cross(axes[1]);
-            double zSign = (axes[2].Dot(xyCross) > 0.0) ? 1.0 : -1.0;
-            axes[2] = xyCross * zSign;
+            axes[1] = axes[1] - (axes[0] * axes[1].Dot(axes[0]));
+            halfLengths[1] = axes[1].Mag();
+            axes[1].Normalize();
+
+            axes[2] = axes[2] - (axes[0] * axes[2].Dot(axes[0]));
+            axes[2] = axes[2] - (axes[1] * axes[2].Dot(axes[1]));
+            halfLengths[2] = axes[2].Mag();
+            axes[2].Normalize();
+        }
+        else
+        {
+            halfLengths[1] = axes[1].Mag();
+            axes[1].Normalize();
+
+            halfLengths[2] = axes[2].Mag();
             axes[2].Normalize();
 
-            Vec3 xzCross = axes[0].Cross(axes[2]);
-            double ySign = (axes[1].Dot(xzCross) > 0.0) ? 1.0 : -1.0;
-            axes[1] = xzCross * ySign;
-            axes[1].Normalize();
         }
     }
 
@@ -343,8 +352,6 @@ struct Sphere : Shape
 
         if (h < -MINVAL)
             return false;
-        /*if (h < 0.0)
-            return false;*/
 
         h = sqrt(std::max(0.0, h));
 

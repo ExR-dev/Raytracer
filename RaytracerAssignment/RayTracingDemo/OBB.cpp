@@ -1,7 +1,6 @@
 ﻿#include "OBB.h"
 
 #include <iostream>
-#include <cmath>
 
 
 OBB::OBB(
@@ -17,21 +16,6 @@ OBB::OBB(
 	axes[0].Normalize();
 	axes[1].Normalize();
 	axes[2].Normalize();
-
-	if (abs(abs(axes[0] * (axes[1] ^ axes[2])) - 1.0) > 0.000000000001)
-	{
-		std::cout << "Warning: Provided base vectors in OBB constructor are not orthogonal. Substituting with cross of x-axis.\n";
-
-		Vector3D xyCross = axes[0] ^ axes[1];
-		double zSign = (axes[2] * xyCross > 0.0) ? 1.0 : -1.0;
-		axes[2] = xyCross * zSign;
-		axes[2].Normalize();
-
-		Vector3D xzCross = axes[0] ^ axes[2];
-		double ySign = (axes[1] * xzCross > 0.0) ? 1.0 : -1.0;
-		axes[1] = xzCross * ySign;
-		axes[1].Normalize();
-	}
 }
 
 bool OBB::Intersection(const Ray& ray, double& t)
