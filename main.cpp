@@ -1,157 +1,16 @@
 
+#include "Utils.h"
+#include "Vec3.h"
+#include "Phys.h"
+#include "Graphics.h"
+#include "Shapes.h"
+#include "Lights.h"
+#include "Scene.h"
+
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <cmath>
 #include <omp.h>
-
-#include "Utils.h"
-#include "Primitives.h"
-
-struct Scene
-{
-    bool disableLighting;
-    int lightingType;
-
-    int maxBounces;
-    int raySplits;
-
-    Color skyCol;
-
-    Light** lightPtrs;
-    int lightCount;
-
-    Shape** shapePtrs;
-    int shapeCount;
-
-    Scene(bool disableLighting, int lightingType, int maxBounces, int raySplits, Color skyCol) :
-        disableLighting(disableLighting), lightingType(lightingType),
-        maxBounces(maxBounces), raySplits(raySplits), 
-        skyCol(skyCol),
-        lightPtrs(nullptr), lightCount(0), 
-        shapePtrs(nullptr), shapeCount(0)
-    {}
-};
-
-
-
-SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0)
-{
-    SurfaceHitInfo surface = SurfaceHitInfo(
-        Color(), 
-        Color(),
-        Color()
-    );
-
-    if (bounce > 0)
-        ray.origin += ray.dir * MINVAL;
-
-    Hit bestHit = {};
-    double len = 0.0;
-    bool hasHitSomething = false;
-
-    for (int j = 0; j < scene.shapeCount; j++)
-    {
-        Shape* currShape = scene.shapePtrs[j];
-
-        Hit tempHit = {};
-        if (currShape->RayIntersect(ray, &tempHit))
-        {
-            if (hasHitSomething && tempHit.len >= len)
-                continue;
-
-            bestHit = tempHit;
-            len = tempHit.len;
-            hasHitSomething = true;
-        }
-    }
-
-    if (hasHitSomething)
-    {
-        Shape* hitShape = (Shape*)bestHit.target;
-
-        surface.surfaceColor = hitShape->mat.col;
-        surface.surfaceEmission = hitShape->mat.emissionCol * hitShape->mat.emissionStr;
-
-        if (scene.disableLighting)
-        {
-            surface.cumulativeLight = Color(1, 1, 1);
-            goto endHit;
-        }
-
-        if (scene.lightingType != 2)
-        {
-            for (int j = 0; j < scene.lightCount; j++)
-            {
-                Light* currLight = scene.lightPtrs[j];
-                Vec3 dirToLight = currLight->GetRelativePos(bestHit.origin);
-                dirToLight.Normalize();
-
-                if (bestHit.normal.Dot(dirToLight) <= 0)
-                    continue;
-
-                double distSqr = currLight->GetDistSqr(bestHit.origin);
-
-                Ray lightRay(bestHit.origin, dirToLight);
-                Hit lightHit = {};
-
-                bool isBlocked = false;
-                for (int k = 0; k < scene.shapeCount; k++)
-                {
-                    Shape* currShape = scene.shapePtrs[k];
-
-                    if (currShape->RayIntersect(lightRay, &lightHit))
-                        if ((lightHit.len * lightHit.len) < distSqr)
-                            isBlocked = true;
-
-                    if (isBlocked)
-                        break;
-                }
-
-                if (isBlocked)
-                    continue;
-
-                surface.cumulativeLight += currLight->col * 
-                    currLight->GetIntensity(lightRay, bestHit.normal);
-            }
-        }
-
-        if (scene.lightingType != 0 && bounce <= scene.maxBounces)
-        {
-            for (int i = 0; i <= scene.raySplits; i++)
-            {
-                Vec3 randDir = bestHit.normal + RandDir();
-                randDir.Normalize();
-
-                Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
-
-                Vec3 bounceDir = randDir.VLerp(reflectDir, ((Shape*)bestHit.target)->mat.reflectivity);
-                Ray bounceRay(bestHit.origin, bounceDir);
-                Hit bounceHit = {0.0, Vec3(), Vec3(), bestHit.target};
-
-                SurfaceHitInfo bounceSurface = CastRayInScene(scene, bounceRay, bounceHit, bounce + 1);
-                Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
-
-                bounceCol /= (double)(scene.raySplits + 1);
-                surface.cumulativeLight += bounceCol;
-            }
-        }
-    }
-    else
-    {
-        if (bounce == 0)
-            surface.surfaceEmission = scene.skyCol;
-        else
-            surface.surfaceEmission = scene.skyCol * hit.normal.Dot(ray.dir * -1.0);
-    }
-
-endHit:
-    hit = bestHit;
-
-    surface.surfaceColor.Max();
-    surface.surfaceEmission.Max();
-    surface.cumulativeLight.Max();
-    return surface;
-}
 
 
 
@@ -182,17 +41,17 @@ int main()
         new AABB( // Light
             Vec3(0.2, 3.98, 0.2),
             Vec3(4.8, 4.00, 3.3),
-            Material(Color(0,0,0), 0.0, Color(1,1,1), 0.9)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(1,1,1), 0.9)
         ),
 
 
         new Sphere(
             1.0, Vec3(1.5, 2.0, 1.75),
-            Material(Color(1.0, 1.0, 1.0), 1.0, Color(1.0,1.0,1.0), 0.00)
+            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 1.0, Color(1.0,1.0,1.0), 0.00)
         ),
         new Sphere(
             1.0, Vec3(3.5, 2.0, 1.75),
-            Material(Color(1.0, 1.0, 1.0), 1.0, Color(1.0,1.0,1.0), 0.00)
+            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 1.0, Color(1.0,1.0,1.0), 0.00)
         ),
 
 
@@ -200,78 +59,78 @@ int main()
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 0.0, 0.0),
-            Material(Color(0.7, 0.7, 0.8), 0.15, Color(), 0.0)
+            Material(Color(0.7, 0.7, 0.8), 1.0, 1.0, 0.15, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.7, 0.7, 0.8), 0.15, Color(), 0.0)
+            Material(Color(0.7, 0.7, 0.8), 1.0, 1.0, 0.15, Color(), 0.0)
         ),
 
         new Tri( // Roof
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 3.5),
-            Material(Color(0.075, 0.075, 0.075), 1.0, Color(), 0.0)
+            Material(Color(0.075, 0.075, 0.075), 1.0, 1.0, 1.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.075, 0.075, 0.075), 1.0, Color(), 0.0)
+            Material(Color(0.075, 0.075, 0.075), 1.0, 1.0, 1.0, Color(), 0.0)
         ),
 
         new Tri( // Front
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(1.0, 0.7, 0.4), 0.0, Color(), 0.0)
+            Material(Color(1.0, 0.7, 0.4), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 4.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 0.0),
-            Material(Color(1.0, 0.7, 0.4), 0.0, Color(), 0.0)
+            Material(Color(1.0, 0.7, 0.4), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
 
         new Tri( // Left
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
         ),
         new Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
-            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
         ),
 
         new Tri( // Back
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
-            Material(Color(0.4, 0.7, 1.0), 0.0, Color(), 0.0)
+            Material(Color(0.4, 0.7, 1.0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.4, 0.7, 1.0), 0.0, Color(), 0.0)
+            Material(Color(0.4, 0.7, 1.0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
 
         new Tri( // Right
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
-            Material(Color(0.9, 1.0, 0.95), 0.99, Color(), 0.0)
+            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
         ),
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(Shape*);
