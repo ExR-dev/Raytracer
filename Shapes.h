@@ -21,6 +21,11 @@ struct Shape
     {
         return false;
     }
+
+    virtual bool PointIntersect(const Vec3& point) const
+    {
+        return false;
+    }
 };
 
 
@@ -58,8 +63,8 @@ struct AABB : Shape
 
         if (hit != nullptr)
         {
-            hit->len = tmin;
-            hit->origin = ray.origin + (ray.dir * tmin);
+            hit->len = (tmin > 0.0) ? tmin : tmax;
+            hit->origin = ray.origin + (ray.dir * hit->len);
             hit->target = (void*)this;
 
             if (abs(hit->origin.x - min.x) < MINVAL)
@@ -77,6 +82,17 @@ struct AABB : Shape
         }
 
         return result;
+    }
+
+    bool PointIntersect(const Vec3& point) const override
+    {
+        if (point.x < min.x) return false;
+        if (point.x > max.x) return false;
+        if (point.y < min.y) return false;
+        if (point.y > max.y) return false;
+        if (point.z < min.z) return false;
+        if (point.z > max.z) return false;
+        return true;
     }
 };
 
@@ -191,20 +207,29 @@ struct OBB : Shape
 
         return true;
     }
+
+    bool PointIntersect(const Vec3& point) const override
+    {
+        Vec3 p = point - center;
+        return 
+            abs(p.Dot(axes[0])) <= halfLengths[0] &&
+            abs(p.Dot(axes[1])) <= halfLengths[1] &&
+            abs(p.Dot(axes[2])) <= halfLengths[2];
+    }
 };
 
 struct Sphere : Shape
 {
     double rad;
-    Vec3 origin;
+    Vec3 center;
 
-    Sphere(double rad, Vec3 origin, Material mat) :
-        Shape(mat), rad(rad), origin(origin)
+    Sphere(double rad, Vec3 center, Material mat) :
+        Shape(mat), rad(rad), center(center)
     {}
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
     {
-        Vec3 oc = ray.origin - origin;
+        Vec3 oc = ray.origin - center;
         double b = oc.Dot(ray.dir);
 
         Vec3 qc = oc - ray.dir * b;
@@ -233,10 +258,97 @@ struct Sphere : Shape
         {
             hit->len = t0;
             hit->origin = ray.origin + ray.dir * hit->len;
-            hit->normal = (hit->origin - origin) / rad;
+            hit->normal = (hit->origin - center) / rad;
             hit->target = (void*)this;
         }
         return true;
+    }
+
+    bool PointIntersect(const Vec3& point) const override
+    {
+        Vec3 p = point - center;
+        return p.MagSqr() <= rad * rad;
+    }
+};
+
+struct Hemisphere : Shape
+{
+    double rad;
+    Vec3 center, normal;
+
+    Hemisphere(double rad, Vec3 center, Vec3 normal, Material mat) :
+        Shape(mat), rad(rad), center(center), normal(normal)
+    {}
+
+    bool RayIntersect(const Ray& ray, Hit* hit) const override
+    {
+        Vec3 oc = ray.origin - center;
+        double b = oc.Dot(ray.dir);
+
+        Vec3 qc = oc - ray.dir * b;
+        double h = rad * rad - qc.Dot(qc);
+
+        if (h < -MINVAL)
+            return false;
+
+        h = sqrt(std::max(0.0, h));
+
+        double
+            t0 = -b - h,
+            t1 = -b + h;
+
+        if (t0 > t1)
+            std::swap(t0, t1);
+
+        if (t0 < 0.0)
+        {
+            t0 = t1;
+            if (t0 < 0.0)
+                return false;
+        }
+
+        if (normal.Dot((ray.origin + ray.dir * t0) - center) < 0.0)
+        {
+            if (hit != nullptr)
+            {
+                hit->len = t0;
+                hit->origin = ray.origin + ray.dir * hit->len;
+                hit->normal = (hit->origin - center) / rad;
+                hit->target = (void*)this;
+            }
+            return true;
+        }
+
+        double a = normal.Dot(ray.dir);
+
+        if ((a >= 0) != (normal.Dot(center - ray.origin) >= 0))
+            return false;
+
+        /*if (normal.Dot(center - ray.origin) >= 0)
+            return false;*/
+
+        t0 = (normal.Dot(center) - normal.Dot(ray.origin)) / a;
+
+        Vec3 p = (ray.origin + ray.dir * t0) - center;
+
+        if (p.MagSqr() > rad*rad)
+            return false;
+
+        if (hit != nullptr)
+        {
+            hit->len = t0;
+            hit->origin = p + center;
+            hit->normal = normal;
+            hit->target = (void*)this;
+        }
+        return true;
+    }
+
+    bool PointIntersect(const Vec3& point) const override
+    {
+        Vec3 p = point - center;
+        double a = normal.Dot(p - center);
+        return (p.MagSqr() <= rad*rad) && (a <= 0.0);
     }
 };
 
@@ -253,6 +365,7 @@ struct Tri : Shape
         Vec3 edge1 = v1 - v0;
         Vec3 edge2 = v2 - v0;
 
+        // Backface-culling
         Vec3 kk = edge1.Cross(edge2);
         if (kk.Dot(ray.dir) >= 0)
             return false;
@@ -292,14 +405,19 @@ struct Tri : Shape
         }
         return false;
     }
+
+    bool PointIntersect(const Vec3& point) const override
+    {
+        return false;
+    }
 };
 
 struct Plane : Shape
 {
-    Vec3 origin, normal;
+    Vec3 center, normal;
 
-    Plane(Vec3 origin, Vec3 normal, Material mat) :
-        Shape(mat), origin(origin), normal(normal)
+    Plane(Vec3 center, Vec3 normal, Material mat) :
+        Shape(mat), center(center), normal(normal)
     {
         this->normal.Normalize();
     }
@@ -308,16 +426,17 @@ struct Plane : Shape
     {
         double a = normal.Dot(ray.dir);
 
-        if (a >= 0)
+        // Backface-culling
+        /*if (a >= 0)
+            return false;*/
+
+        if ((a >= 0) != (normal.Dot(center - ray.origin) >= 0))
             return false;
 
-        if (normal.Dot(origin - ray.origin) >= 0)
+        if (normal.Dot(center - ray.origin) >= 0)
             return false;
 
-        double
-            b = normal.Dot(ray.dir),
-            d = normal.Dot(origin),
-            t = (d - normal.Dot(ray.origin)) / b;
+        double t = (normal.Dot(center) - normal.Dot(ray.origin)) / a;
 
         if (hit != nullptr)
         {
@@ -327,5 +446,10 @@ struct Plane : Shape
             hit->target = (void*)this;
         }
         return true;
+    }
+
+    bool PointIntersect(const Vec3& point) const override
+    {
+        return normal.Dot(center - point) < 0.0;
     }
 };

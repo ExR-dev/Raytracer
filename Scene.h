@@ -7,6 +7,9 @@
 #include "Shapes.h"
 #include "Lights.h"
 
+#include <algorithm>
+#include <vector>
+
 
 
 struct Cam
@@ -74,7 +77,22 @@ struct SurfaceHitInfo
 };
 
 
-SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0, double refractIndex = riAir)
+struct Refraction
+{
+    double ri;
+    void* shape;
+
+    bool operator==(const Refraction r) const
+    {
+        return (ri == r.ri && shape == r.shape);
+    }
+    bool operator!=(const Refraction r) const
+    {
+        return !(*this == r);
+    }
+};
+
+SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, std::vector<Refraction> riQueue, int bounce = 0)
 {
     SurfaceHitInfo surface = SurfaceHitInfo(
         Color(),
@@ -159,49 +177,66 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0, d
         {
             for (int i = 0; i <= scene.raySplits; i++)
             {
-                Color totCol = Color(0,0,0);
+                Color totCol = Color(0.0, 0.0, 0.0);
+                double opacity = hitShape->mat.opacity;
 
-                Vec3 randDir = bestHit.normal + RandDir();
-                randDir.Normalize();
-
-                Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
-
-                Vec3 bounceDir = randDir.VLerp(reflectDir, hitShape->mat.reflectivity);
-                Ray bounceRay(bestHit.origin, bounceDir);
-                Hit bounceHit = {0.0, Vec3(), Vec3(), bestHit.target};
-
-                SurfaceHitInfo bounceSurface = CastRayInScene(scene, bounceRay, bounceHit, bounce + 1, refractIndex);
-                Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
-
-                totCol += bounceCol * hitShape->mat.opacity;
-
-                if (hitShape->mat.opacity < 1.0)
+                if (opacity > 0)
                 {
-                    double n1 = refractIndex;
+                    Vec3 randDir = bestHit.normal + RandDir();
+
+                    Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
+
+                    Vec3 bounceDir = randDir.VLerp(reflectDir, hitShape->mat.reflectivity);
+                    Ray bounceRay(bestHit.origin, bounceDir);
+                    Hit bounceHit = {0.0, Vec3(), Vec3(), bestHit.target};
+
+                    SurfaceHitInfo bounceSurface =
+                        CastRayInScene(
+                            scene,
+                            bounceRay,
+                            bounceHit,
+                            riQueue,
+                            bounce + ((opacity <= 0.5) ? 2 : 1)
+                        );
+
+                    Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
+                    totCol += bounceCol * opacity;
+                }
+
+                if (opacity < 1)
+                {
+                    double rayToNormalDot = ray.dir.Dot(bestHit.normal);
+
+                    double n1 = riQueue.back().ri;
                     double n2 = hitShape->mat.refractIndex;
 
-                    if (ray.dir.Dot(bestHit.normal) > 0.0)
+                    if (rayToNormalDot > 0.0)
                     {
-                        n2 = refractIndex;
+                        Refraction ref = {n2, hitShape};
+                        if (std::find(riQueue.begin(), riQueue.end(), ref) != riQueue.end())
+                            riQueue.erase(std::remove(riQueue.begin(), riQueue.end(), ref), riQueue.end());
+                        n2 = riQueue.back().ri;
+                    }
+                    else
+                    {
+                        riQueue.push_back({n2, hitShape});
                     }
 
-
-                    double newRefractIndex = hitShape->mat.refractIndex;
-                    
-                    if (refractIndex != riAir && newRefractIndex != riAir)
-                    {
-                        newRefractIndex  += refractIndex - 1.0;
-                    }
-
-
-                    Vec3 refractDir = ray.dir.Refract(bestHit.normal * -1, n1, n2); // Do Snell's law
-                    Ray refractRay(bestHit.origin, refractDir);
+                    Vec3 refractDir = ray.dir.Refract(bestHit.normal * -1.0, n1, n2); // Snell's law
+                    Ray refractRay(bestHit.origin + refractDir * MINVAL, refractDir);
                     Hit refractHit = {0.0, Vec3(), Vec3(), bestHit.target};
 
-                    SurfaceHitInfo refractSurface = CastRayInScene(scene, refractRay, refractHit, bounce + 1, newRefractIndex);
-                    Color refractCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
+                    SurfaceHitInfo refractSurface = 
+                        CastRayInScene(
+                            scene, 
+                            refractRay, 
+                            refractHit,
+                            riQueue,
+                            bounce + ((opacity <= 0.5) ? 1 : 2)
+                        );
 
-                    totCol += refractCol * (1.0 - hitShape->mat.opacity);
+                    Color refractCol = (refractSurface.surfaceColor * refractSurface.cumulativeLight) + refractSurface.surfaceEmission;
+                    totCol += refractCol * (1.0 - opacity);
                 }
 
                 totCol /= (double)(scene.raySplits + 1);
@@ -214,7 +249,7 @@ SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, int bounce = 0, d
         if (bounce == 0)
             surface.surfaceEmission = scene.skyCol;
         else
-            surface.surfaceEmission = scene.skyCol * hit.normal.Dot(ray.dir * -1.0);
+            surface.surfaceEmission = scene.skyCol * abs(hit.normal.Dot(ray.dir * -1.0));
     }
 
 endHit:

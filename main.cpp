@@ -19,11 +19,11 @@ int main()
     // Build Scene
     Cam cam(
         80.0f, true,
-        Vec3(2.5, 2.0, -1.0),
-        { 0.0, 0.0, 1.0 }
+        Vec3(2.5, 2.5, -1.0),
+        { 0.0, -0.5, 1.0 }
     );
 
-    Scene scene(true, true, 8, 0, Color());
+    Scene scene(true, true, 2, 0, Color());
 
 
     Light* lightPtrs[] = {
@@ -38,100 +38,120 @@ int main()
 
 
     Shape* shapePtrs[] = {
-        new AABB( // Light
-            Vec3(0.2, 3.98, 0.2),
-            Vec3(4.8, 4.00, 3.3),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(1,1,1), 0.9)
+        /*new Tri( // Light
+            Vec3(1.75, 3.99, 1.0),
+            Vec3(3.25, 3.99, 2.5),
+            Vec3(1.75, 3.99, 2.5),
+            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(1,1,1), 2.5)
+        ),
+        new Tri(
+            Vec3(3.25, 3.99, 2.5),
+            Vec3(1.75, 3.99, 1.0),
+            Vec3(3.25, 3.99, 1.0),
+            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(1,1,1), 2.5)
+        ),*/
+        new Sphere( // Light
+            0.1, Vec3(2.5, 4.0, 1.75),
+            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(1,1,1), 25.0)
         ),
 
 
-        new Sphere(
-            1.0, Vec3(1.5, 2.0, 1.75),
-            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 1.0, Color(1.0,1.0,1.0), 0.00)
+        /*new Sphere(
+            1.0, Vec3(2.5, 2.0, 1.75),
+            Material(Color(1.0, 0.2, 0.2), 0.1, 1.8, 0.0, Color(0,0,0), 0.0)
+        ),*/
+        new Hemisphere(
+            0.5, Vec3(2.5, 2.0, 1.75),
+            Vec3(0.0, -1.0, 0.0),
+            //Material(Color(1.0, 0.0, 0.0), 0.0, 2.9, 0.0, Color(0,0,0), 0.0)
+            Material(Color(1.0, 0.0, 0.0), 0.05, 1.5, 0.0, Color(0,0,0), 0.0)
         ),
-        new Sphere(
-            1.0, Vec3(3.5, 2.0, 1.75),
-            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 1.0, Color(1.0,1.0,1.0), 0.00)
+        new AABB(
+            Vec3(1.75, -0.01, 1.0),
+            Vec3(3.25, 0.00, 2.5),
+            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(0.0, 0.0, 0.0), 0.0)
         ),
 
 
-        new Tri( // Floor
+        /*new Tri( // Floor
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 0.0, 0.0),
-            Material(Color(0.7, 0.7, 0.8), 1.0, 1.0, 0.15, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 0.0),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.7, 0.7, 0.8), 1.0, 1.0, 0.15, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
 
         new Tri( // Roof
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 3.5),
-            Material(Color(0.075, 0.075, 0.075), 1.0, 1.0, 1.0, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 4.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.075, 0.075, 0.075), 1.0, 1.0, 1.0, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
+
 
         new Tri( // Front
             Vec3(0.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(1.0, 0.7, 0.4), 1.0, 1.0, 0.0, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 4.0, 0.0),
             Vec3(0.0, 4.0, 0.0),
             Vec3(0.0, 0.0, 0.0),
-            Material(Color(1.0, 0.7, 0.4), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-
-        new Tri( // Left
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(0.0, 4.0, 0.0),
-            Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(0.0, 4.0, 3.5),
-            Vec3(0.0, 0.0, 3.5),
-            Vec3(0.0, 4.0, 0.0),
-            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
 
         new Tri( // Back
             Vec3(5.0, 0.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
-            Material(Color(0.4, 0.7, 1.0), 1.0, 1.0, 0.0, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(0.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 3.5),
             Vec3(0.0, 0.0, 3.5),
-            Material(Color(0.4, 0.7, 1.0), 1.0, 1.0, 0.0, Color(), 0.0)
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
+        ),
+
+
+        new Tri( // Left
+            Vec3(0.0, 0.0, 0.0),
+            Vec3(0.0, 4.0, 0.0),
+            Vec3(0.0, 0.0, 3.5),
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
+        ),
+        new Tri(
+            Vec3(0.0, 4.0, 3.5),
+            Vec3(0.0, 0.0, 3.5),
+            Vec3(0.0, 4.0, 0.0),
+            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
 
         new Tri( // Right
             Vec3(5.0, 0.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
-            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
+            Material(Color(0, 0, 0), 1.0, 1.0, 0.0, Color(), 0.0)
         ),
         new Tri(
             Vec3(5.0, 4.0, 3.5),
             Vec3(5.0, 4.0, 0.0),
             Vec3(5.0, 0.0, 3.5),
-            Material(Color(0.9, 1.0, 0.95), 1.0, 1.0, 0.99, Color(), 0.0)
-        ),
+            Material(Color(0, 0, 0), 1.0, 1.0, 0.0, Color(), 0.0)
+        ),*/
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(Shape*);
 
@@ -194,14 +214,19 @@ int main()
 
 
     {
+        //cam.perspective = false;
+        //cam.fov = 1.0f;
         scene.disableLighting = false;
+        scene.lightingType = 2;
+        scene.maxBounces = 3;
         cumulativeLighting = true; 
         randomizeSampleDir = true;
         disableScanSpeed = true;
         scanSpeed = dim;
         giveControl = false;
-        perPixelSamples = 2;
+        perPixelSamples = 1;
     }
+
 
     while (window.isOpen())
     {
@@ -370,7 +395,7 @@ int main()
                 int verticality = (sign > 0) ? -1 : 1;
 
                 Vec3 offAngle = cam.fwd - Vec3(0, verticality, 0);
-                offAngle.Normalize();
+                offAngle.NormalizeApprox();
 
                 cam.fwd = (
                     cam.fwd * cos(sign) +
@@ -404,7 +429,16 @@ int main()
         int drawStart = currPix;
         int drawEnd = std::min(dim, currPix + scanSpeed);
 
-        #pragma omp parallel for num_threads(2)
+        std::vector<Refraction> riQueueShared(1, {riAir, nullptr});
+
+        for (int i = 0; i < scene.shapeCount; i++)
+        {
+            Shape* shape = scene.shapePtrs[i];
+            if (shape->PointIntersect(cam.origin))
+                riQueueShared.push_back({shape->mat.refractIndex, shape});
+        }
+
+        #pragma omp parallel for num_threads(6)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -445,7 +479,10 @@ int main()
                 Ray ray(pixPos, pixDir);
                 Hit hit = {};
 
-                SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit);
+                std::vector<Refraction> riQueue;
+                riQueue = riQueueShared;
+
+                SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit, riQueue);
                 hitCol += (hitSurface.surfaceColor * hitSurface.cumulativeLight) + hitSurface.surfaceEmission;
             }
             hitCol /= perPixelSamples;

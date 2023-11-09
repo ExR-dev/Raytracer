@@ -61,25 +61,25 @@ struct GlobalLight : Light
 
 struct PointLight : Light
 {
-    Vec3 origin;
+    Vec3 center;
     double falloff;
 
-    PointLight(const Vec3& origin, double falloff, double intensity, const Color& col) :
-        Light(intensity, col), origin(origin), falloff(falloff)
+    PointLight(const Vec3& center, double falloff, double intensity, const Color& col) :
+        Light(intensity, col), center(center), falloff(falloff)
     {}
 
     Vec3 GetRelativePos(const Vec3& objPos) const override
     {
-        return origin - objPos;
+        return center - objPos;
     }
 
     double GetDistSqr(const Vec3& objPos) const override
     {
-        return (origin - objPos).MagSqr();
+        return (center - objPos).MagSqr();
     }
 
     double GetIntensity(const Ray& lightray, const Vec3& surfaceNormal) const override
     {
-        return (intensity / (origin - lightray.origin).MagSqr()) * surfaceNormal.Dot(lightray.dir) * 2.0;
+        return (intensity / (center - lightray.origin).MagSqr()) * surfaceNormal.Dot(lightray.dir) * 2.0;
     }
 };

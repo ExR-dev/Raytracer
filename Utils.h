@@ -11,6 +11,17 @@ constexpr double MINVAL = 0.000000001;
 constexpr double MAXVAL = 1000000000.0;
 
 
+inline double isqrt(double number)
+{
+    double y = number;
+    double x2 = y * 0.5;
+    std::int64_t i = *(std::int64_t*)&y;
+    i = 0x5fe6eb50c7b537a9 - (i >> 1);
+    y = *(double*)&i;
+    y = y * (1.5 - (x2 * y * y));
+    return y;
+}
+
 inline double Lerp(double p0, double p1, double t)
 {
     return (1.0 - t) * p0 + t * p1;
@@ -18,7 +29,7 @@ inline double Lerp(double p0, double p1, double t)
 
 inline double RandNum()
 {
-    return double(rand()) / double(RAND_MAX + 1);
+    return double(rand()) / double(RAND_MAX + 1.0);
 }
 
 

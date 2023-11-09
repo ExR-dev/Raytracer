@@ -13,11 +13,11 @@ struct Vec3
     Vec3() :
         x(0), y(0), z(0)
     {}
-    Vec3(float x, float y, float z) :
-        x((double)x), y((double)y), z((double)z)
-    {}
     Vec3(double x, double y, double z) :
         x(x), y(y), z(z)
+    {}
+    Vec3(float x, float y, float z) :
+        x((double)x), y((double)y), z((double)z)
     {}
     Vec3(int x, int y, int z) :
         x((double)x), y((double)y), z((double)z)
@@ -111,7 +111,7 @@ struct Vec3
 
     inline double MagSqr() const
     {
-        return (x * x + y * y + z * z);
+        return (x*x + y*y + z*z);
     }
     inline double Mag() const
     {
@@ -120,6 +120,11 @@ struct Vec3
     Vec3& Normalize()
     {
         *(this) *= 1.0 / Mag();
+        return *(this);
+    }
+    Vec3& NormalizeApprox()
+    {
+        *(this) *= isqrt(MagSqr());
         return *(this);
     }
 
@@ -155,19 +160,19 @@ struct Vec3
     inline Vec3 Reflect(const Vec3 normal) const
     {
         Vec3 r = (*this) - normal * (Dot(normal) * 2.0);
-
+        r.Normalize();
         return r;
     }
-
     inline Vec3 Refract(const Vec3 normal, double n1, double n2) const
     {
-        double n = n1 / n2;
-        double dot = Dot(normal);
-        double c = sqrt(1 - n*n * (1 - dot*dot));
+        double 
+            n = n1 / n2,
+            dot = Dot(normal),
+            c = sqrt(1.0 - n*n * (1.0 - dot*dot));
 
-        double sign = 1;
+        double sign = 1.0;
         if (dot < 0.0)
-            sign = -1;
+            sign = -1.0;
 
         Vec3 refraction = ((*this) * n) + (normal * sign * (c - sign * n * dot));
         refraction.Normalize();
@@ -184,8 +189,9 @@ inline Vec3 RandDir()
     do      v = Vec3(RandNum(), RandNum(), RandNum());
     while (v.MagSqr() > 1.0);
 
-    v *= 2.0;
-    v -= Vec3(1, 1, 1);
+    v.x *= (RandNum() <= 0.5) ? -1.0 : 1.0;
+    v.y *= (RandNum() <= 0.5) ? -1.0 : 1.0;
+    v.z *= (RandNum() <= 0.5) ? -1.0 : 1.0;
 
     double m = v.Mag();
 
