@@ -8,8 +8,95 @@
 #include "Lights.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <vector>
 
+
+
+struct SurfaceHitInfo
+{
+    Color surfaceColor;
+    Color surfaceEmission;
+    Color cumulativeLight;
+
+    SurfaceHitInfo(Color surfaceColor, Color surfaceEmission, Color cumulativeLight) :
+        surfaceColor(surfaceColor), surfaceEmission(surfaceEmission), cumulativeLight(cumulativeLight)
+    {}
+};
+
+struct Refraction
+{
+    double ri;
+    void* shape;
+
+    bool operator==(const Refraction r) const
+    {
+        return (ri == r.ri && shape == r.shape);
+    }
+    bool operator!=(const Refraction r) const
+    {
+        return !(*this == r);
+    }
+};
+
+struct Skybox
+{
+    Color horizonCol;
+    double horizonStr;
+
+    Color peakCol;
+    double peakStr;
+
+    Color sunCol;
+    double sunStr;
+
+    Vec3 sunDir;
+    double sunWidth, sunFlare;
+
+
+    Skybox(Color horizonCol, double horizonStr, 
+           Color peakCol, double peakStr, 
+           Color sunCol, double sunStr, 
+           Vec3 sunDir, double sunWidth, double sunFlare) :
+        horizonCol(horizonCol), horizonStr(horizonStr),
+        peakCol(peakCol), peakStr(peakStr),
+        sunCol(sunCol), sunStr(sunStr),
+        sunDir(sunDir), sunWidth(0), sunFlare(0)
+    {
+        this->sunDir.Normalize();
+        this->sunWidth = sunWidth * sunWidth;
+        this->sunFlare = sunFlare * sunFlare;
+    }
+
+
+    Color Sample(Vec3 dir, bool applyStr)
+    {
+        Color result = horizonCol * (applyStr ? horizonStr : 1.0);
+        result = result.Lerp(
+            peakCol * (applyStr ? peakStr : 1.0),
+            std::clamp(dir.Dot(Vec3(0.0, 1.0, 0.0)), 0.0, 1.0)
+        );
+
+        double sunOffset = dir.Dot(-sunDir) * 0.5 + 0.5 - (sunWidth);
+        sunOffset /= 1.0 - sunWidth;
+        sunOffset /= sunFlare;
+        sunOffset = 1.0 - sunOffset;
+
+        if (sunOffset > 1.0)
+            return sunCol * (applyStr ? sunStr : 1.0);
+        if (sunOffset < 0.0)
+            return result;
+
+        sunOffset = pow(exp2(sunOffset * 0.95) - 1.0, 3.0);
+
+        result = result.Lerp(
+            sunCol * (applyStr ? sunStr : 1.0),
+            std::clamp(sunOffset, 0.0, 1.0)
+        );
+
+        return result;
+    }
+};
 
 
 struct Cam
@@ -42,13 +129,7 @@ struct Cam
 
 struct Scene
 {
-    bool disableLighting;
-    int lightingType;
-
-    int maxBounces;
-    int raySplits;
-
-    Color skyCol;
+    Skybox* sky;
 
     Light** lightPtrs;
     int lightCount;
@@ -56,207 +137,194 @@ struct Scene
     Shape** shapePtrs;
     int shapeCount;
 
-    Scene(bool disableLighting, int lightingType, int maxBounces, int raySplits, Color skyCol) :
-        disableLighting(disableLighting), lightingType(lightingType),
-        maxBounces(maxBounces), raySplits(raySplits),
-        skyCol(skyCol),
+    bool disableLighting;
+    int lightingType;
+
+    int maxBounces;
+    int raySplits;
+
+    Scene(Skybox* sky, bool disableLighting, int lightingType, int maxBounces, int raySplits) :
+        sky(sky),
         lightPtrs(nullptr), lightCount(0),
-        shapePtrs(nullptr), shapeCount(0)
+        shapePtrs(nullptr), shapeCount(0),
+        disableLighting(disableLighting), lightingType(lightingType),
+        maxBounces(maxBounces), raySplits(raySplits)
     {}
-};
 
-struct SurfaceHitInfo
-{
-    Color surfaceColor;
-    Color surfaceEmission;
-    Color cumulativeLight;
-
-    SurfaceHitInfo(Color surfaceColor, Color surfaceEmission, Color cumulativeLight) :
-        surfaceColor(surfaceColor), surfaceEmission(surfaceEmission), cumulativeLight(cumulativeLight)
-    {}
-};
-
-struct Refraction
-{
-    double ri;
-    void* shape;
-
-    bool operator==(const Refraction r) const
+    SurfaceHitInfo CastRay(Ray ray, Hit& hit, std::vector<Refraction> riQueue, int bounce = 0)
     {
-        return (ri == r.ri && shape == r.shape);
-    }
-    bool operator!=(const Refraction r) const
-    {
-        return !(*this == r);
-    }
-};
+        SurfaceHitInfo surface = SurfaceHitInfo(
+            Color(),
+            Color(),
+            Color()
+        );
 
+        if (bounce > 0)
+            ray.origin += ray.dir * utils::MINVAL;
 
-SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, std::vector<Refraction> riQueue, int bounce = 0)
-{
-    SurfaceHitInfo surface = SurfaceHitInfo(
-        Color(),
-        Color(),
-        Color()
-    );
+        Hit bestHit = {};
+        double len = 0.0;
+        bool hasHitSomething = false;
 
-    if (bounce > 0)
-        ray.origin += ray.dir * MINVAL;
-
-    Hit bestHit = {};
-    double len = 0.0;
-    bool hasHitSomething = false;
-
-    for (int j = 0; j < scene.shapeCount; j++)
-    {
-        Shape* currShape = scene.shapePtrs[j];
-
-        Hit tempHit = {};
-        if (currShape->RayIntersect(ray, &tempHit))
+        for (int j = 0; j < shapeCount; j++)
         {
-            if (hasHitSomething && tempHit.len >= len)
-                continue;
+            Shape* currShape = shapePtrs[j];
 
-            bestHit = tempHit;
-            len = tempHit.len;
-            hasHitSomething = true;
-        }
-    }
-
-    if (hasHitSomething)
-    {
-        Shape* hitShape = (Shape*)bestHit.target;
-
-        surface.surfaceColor = hitShape->mat.col;
-        surface.surfaceEmission = hitShape->mat.emissionCol * hitShape->mat.emissionStr;
-
-        if (scene.disableLighting)
-        {
-            surface.cumulativeLight = Color(1, 1, 1);
-            goto endHit;
-        }
-
-        if (scene.lightingType != 2)
-        {
-            for (int j = 0; j < scene.lightCount; j++)
+            Hit tempHit = {};
+            if (currShape->RayIntersect(ray, &tempHit))
             {
-                Light* currLight = scene.lightPtrs[j];
-                Vec3 dirToLight = currLight->GetRelativePos(bestHit.origin);
-                dirToLight.Normalize();
-
-                if (bestHit.normal.Dot(dirToLight) <= 0)
+                if (hasHitSomething && tempHit.len >= len)
                     continue;
 
-                double distSqr = currLight->GetDistSqr(bestHit.origin);
+                bestHit = tempHit;
+                len = tempHit.len;
+                hasHitSomething = true;
+            }
+        }
 
-                Ray lightRay(bestHit.origin, dirToLight);
-                Hit lightHit = {};
+        if (hasHitSomething)
+        {
+            Shape* hitShape = (Shape*)bestHit.target;
 
-                bool isBlocked = false;
-                for (int k = 0; k < scene.shapeCount; k++)
+            surface.surfaceColor = hitShape->mat.col;
+            surface.surfaceEmission = hitShape->mat.emissionCol * hitShape->mat.emissionStr;
+
+            if (disableLighting)
+            {
+                surface.cumulativeLight = Color(1, 1, 1);
+                goto endHit;
+            }
+
+            if (lightingType != 2)
+            {
+                for (int j = 0; j < lightCount; j++)
                 {
-                    Shape* currShape = scene.shapePtrs[k];
+                    Light* currLight = lightPtrs[j];
+                    Vec3 dirToLight = currLight->GetRelativePos(bestHit.origin);
+                    dirToLight.Normalize();
 
-                    if (currShape->RayIntersect(lightRay, &lightHit))
-                        if ((lightHit.len * lightHit.len) < distSqr)
-                            isBlocked = true;
+                    if (bestHit.normal.Dot(dirToLight) <= 0)
+                        continue;
+
+                    double distSqr = currLight->GetDistSqr(bestHit.origin);
+
+                    Ray lightRay(bestHit.origin, dirToLight);
+                    Hit lightHit = {};
+
+                    bool isBlocked = false;
+                    for (int k = 0; k < shapeCount; k++)
+                    {
+                        Shape* currShape = shapePtrs[k];
+
+                        if (currShape->RayIntersect(lightRay, &lightHit))
+                            if ((lightHit.len * lightHit.len) < distSqr)
+                                isBlocked = true;
+
+                        if (isBlocked)
+                            break;
+                    }
 
                     if (isBlocked)
-                        break;
+                        continue;
+
+                    surface.cumulativeLight += currLight->col *
+                        currLight->GetIntensity(lightRay, bestHit.normal);
                 }
-
-                if (isBlocked)
-                    continue;
-
-                surface.cumulativeLight += currLight->col *
-                    currLight->GetIntensity(lightRay, bestHit.normal);
             }
-        }
 
-        if (scene.lightingType != 0 && bounce <= scene.maxBounces)
-        {
-            for (int i = 0; i <= scene.raySplits; i++)
+            if (lightingType != 0 && bounce <= maxBounces)
             {
-                Color totCol = Color(0.0, 0.0, 0.0);
-                double opacity = hitShape->mat.opacity;
-
-                if (opacity > 0)
+                for (int i = 0; i <= raySplits; i++)
                 {
-                    Vec3 randDir = bestHit.normal + RandDir();
+                    Color totCol = Color(0.0, 0.0, 0.0);
+                    double opacity = hitShape->mat.opacity;
 
-                    Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
-
-                    Vec3 bounceDir = randDir.VLerp(reflectDir, hitShape->mat.reflectivity);
-                    Ray bounceRay(bestHit.origin, bounceDir);
-                    Hit bounceHit = {0.0, Vec3(), Vec3(), bestHit.target};
-
-                    SurfaceHitInfo bounceSurface =
-                        CastRayInScene(
-                            scene,
-                            bounceRay,
-                            bounceHit,
-                            riQueue,
-                            bounce + ((opacity <= 0.5) ? 2 : 1)
-                        );
-
-                    Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
-                    totCol += bounceCol * opacity;
-                }
-
-                if (opacity < 1)
-                {
-                    double rayToNormalDot = ray.dir.Dot(bestHit.normal);
-
-                    double n1 = riQueue.back().ri;
-                    double n2 = hitShape->mat.refractIndex;
-
-                    if (rayToNormalDot > 0.0)
+                    if (opacity > 0)
                     {
-                        Refraction ref = {n2, hitShape};
-                        if (std::find(riQueue.begin(), riQueue.end(), ref) != riQueue.end())
-                            riQueue.erase(std::remove(riQueue.begin(), riQueue.end(), ref), riQueue.end());
-                        n2 = riQueue.back().ri;
-                    }
-                    else
-                    {
-                        riQueue.push_back({n2, hitShape});
+                        Vec3 randDir = bestHit.normal + RandDir();
+
+                        Vec3 reflectDir = ray.dir.Reflect(bestHit.normal);
+
+                        Vec3 bounceDir = randDir.Lerp(reflectDir, hitShape->mat.reflectivity);
+                        Ray bounceRay(bestHit.origin, bounceDir);
+                        Hit bounceHit = Hit(bestHit);
+
+                        SurfaceHitInfo bounceSurface =
+                            CastRay(
+                                bounceRay,
+                                bounceHit,
+                                riQueue,
+                                bounce + ((opacity <= 0.5) ? 2 : 1)
+                            );
+
+                        Color bounceCol = (bounceSurface.surfaceColor * bounceSurface.cumulativeLight) + bounceSurface.surfaceEmission;
+                        totCol += bounceCol * opacity;
                     }
 
-                    Vec3 refractDir = ray.dir.Refract(bestHit.normal * -1.0, n1, n2); // Snell's law
-                    Ray refractRay(bestHit.origin + refractDir * MINVAL, refractDir);
-                    Hit refractHit = {0.0, Vec3(), Vec3(), bestHit.target};
+                    if (opacity < 1)
+                    {
+                        double rayToNormalDot = ray.dir.Dot(bestHit.normal);
 
-                    SurfaceHitInfo refractSurface = 
-                        CastRayInScene(
-                            scene, 
-                            refractRay, 
-                            refractHit,
-                            riQueue,
-                            bounce + ((opacity <= 0.5) ? 1 : 2)
-                        );
+                        double n1 = riQueue.back().ri;
+                        double n2 = hitShape->mat.refractIndex;
 
-                    Color refractCol = (refractSurface.surfaceColor * refractSurface.cumulativeLight) + refractSurface.surfaceEmission;
-                    totCol += refractCol * (1.0 - opacity);
+                        if (rayToNormalDot > 0.0)
+                        {
+                            Refraction ref = {n2, hitShape};
+                            if (std::find(riQueue.begin(), riQueue.end(), ref) != riQueue.end())
+                                riQueue.erase(std::remove(riQueue.begin(), riQueue.end(), ref), riQueue.end());
+                            n2 = riQueue.back().ri;
+                        }
+                        else
+                        {
+                            riQueue.push_back({n2, hitShape});
+                        }
+
+                        Vec3 refractDir = ray.dir.Refract(bestHit.normal * -1.0, n1, n2); // Snell's law
+                        Ray refractRay(bestHit.origin + refractDir * utils::MINVAL, refractDir);
+                        Hit refractHit = Hit(bestHit);
+
+                        SurfaceHitInfo refractSurface =
+                            CastRay(
+                                refractRay,
+                                refractHit,
+                                riQueue,
+                                bounce + ((opacity <= 0.5) ? 1 : 2)
+                            );
+
+                        Color refractCol = (refractSurface.surfaceColor * refractSurface.cumulativeLight) + refractSurface.surfaceEmission;
+                        totCol += refractCol * (1.0 - opacity);
+                    }
+
+                    totCol /= (double)(raySplits + 1);
+                    surface.cumulativeLight += totCol;
                 }
-
-                totCol /= (double)(scene.raySplits + 1);
-                surface.cumulativeLight += totCol;
             }
         }
-    }
-    else
-    {
-        if (bounce == 0)
-            surface.surfaceEmission = scene.skyCol;
         else
-            surface.surfaceEmission = scene.skyCol * abs(hit.normal.Dot(ray.dir * -1.0));
+        {
+            if (sky != nullptr)
+            {
+                if (bounce == 0)
+                    surface.surfaceEmission = sky->Sample(ray.dir, true);
+                else
+                    surface.surfaceEmission = sky->Sample(ray.dir, true) * abs(hit.normal.Dot(-ray.dir));
+            }
+        }
+
+    endHit:
+        hit.len = bestHit.len;
+        hit.normal = bestHit.normal;
+        hit.origin = bestHit.origin;
+        hit.target = bestHit.target;
+
+        surface.surfaceColor.Max();
+        surface.surfaceEmission.Max();
+        surface.cumulativeLight.Max();
+        return surface;
     }
+};
 
-endHit:
-    hit = bestHit;
 
-    surface.surfaceColor.Max();
-    surface.surfaceEmission.Max();
-    surface.cumulativeLight.Max();
-    return surface;
-}
+
+

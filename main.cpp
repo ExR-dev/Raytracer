@@ -11,6 +11,7 @@
 #include <iostream>
 #include <cmath>
 #include <omp.h>
+#include <new>
 
 
 
@@ -18,37 +19,48 @@ int main()
 {
     // Build Scene
     Cam cam(
-        80.0f, true,
+        75.0f, true,
         Vec3(2.5, 2.5, -1.0),
-        { 0.0, -0.33, 1.0 }
+        { 0.0, 0.0, 1.0 }
     );
 
-    Scene scene(true, true, 2, 0, Color());
+    /*Skybox sky(
+        Color(0.25, 0.7, 1.0), 0.15,
+        Color(0.75, 0.9, 1.0), 0.3,
+        Color(1.0, 0.8, 0.4), 15.0,
+        Vec3(1.0, 1.0, 1.0), 0.025, 0.15
+    );*/
+    Scene scene(nullptr/*&sky*/, false, 2, 1, 0);
 
 
     Light* lightPtrs[] = {
-        new GlobalLight(
-            Vec3(0, -1, 0), 0.0, scene.skyCol
-        ),
+        0
+        /*new GlobalLight(
+            Vec3(0, -1, 0), 1.0, sky.peakCol
+        ),*/
     };
     int lightCount = sizeof(lightPtrs) / sizeof(Light*);
+    if (lightPtrs[0] == nullptr)
+        lightCount = 0;
 
     scene.lightPtrs = lightPtrs;
     scene.lightCount = lightCount;
 
-    Vec3 sunPos(0.8, 0.4, -0.3);
-    double sunLen = 100000.0;
+
+    Vec3 sunPos(0.8, 0.7, -0.3);
     sunPos.Normalize();
+    double sunLen = 100000.0;
     sunPos *= sunLen;
 
     Shape* shapePtrs[] = {
+        //0
         new Sphere(
             sunLen, Vec3(0, 0, 0),
-            Material(Color(0.45, 0.7, 1.0), 1, 1, 0, Color(0.75, 0.85, 1.0), 0.15)
+            Material(Color(0.55, 0.75, 1.0), 1, 1, 0, Color(0.75, 0.85, 1.0), 0.15)
         ),
         new Sphere(
-            10000.0, sunPos,
-            Material(Color(1.0, 0.8, 0.35), 1, 1, 0, Color(1.0, 0.8, 0.35), 15)
+            7500.0, sunPos,
+            Material(Color(1.0, 0.85, 0.4), 1, 1, 0, Color(1.0, 0.8, 0.35), 15)
         ),
 
         new Plane(
@@ -58,10 +70,9 @@ int main()
         ),
 
 
-
         new Sphere(
-            1.5, Vec3(-3.0, 1.5, 0.0),
-            Material(Color(1,1,1), 0.05, 1.5, 0, Color(0,0,0), 0)
+            1.5, Vec3(3.5, 1.5, -3.0),
+            Material(Color(1,1,1), 0.1, riGlass, 0, Color(0,0,0), 0)
         ),
 
         new Sphere(
@@ -76,6 +87,8 @@ int main()
         ),
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(Shape*);
+    if (shapePtrs[0] == nullptr)
+        shapeCount = 0;
 
     scene.shapePtrs = shapePtrs;
     scene.shapeCount = shapeCount;
@@ -83,8 +96,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 320,
-        h = 180,
+        w = 480,
+        h = 270,
         dim = w * h;
 
     bool cumulativeLighting = true;
@@ -140,13 +153,13 @@ int main()
         //cam.fov = 1.0f;
         scene.disableLighting = false;
         scene.lightingType = 2;
-        scene.maxBounces = 3;
+        scene.maxBounces = 5;
         cumulativeLighting = true; 
         randomizeSampleDir = true;
         disableScanSpeed = true;
         scanSpeed = dim;
         giveControl = false;
-        perPixelSamples = 8;
+        perPixelSamples = 1;
     }
 
 
@@ -326,7 +339,7 @@ int main()
                     );
 
                 if (offAngle.Dot(cam.fwd) <= 0)
-                    cam.fwd = Vec3(0, verticality, 0) + offAngle * MINVAL * 100.0;
+                    cam.fwd = Vec3(0, verticality, 0) + offAngle * utils::MINVAL * 100.0;
             }
             if (deltas.x != 0 && abs(cam.fwd.y) != 1.0)
             {
@@ -343,7 +356,7 @@ int main()
         }
 
         double
-            viewHeight = tan(((double)cam.fov / 2.0) * PI / 180.0) * 2.0,
+            viewHeight = tan(((double)cam.fov / 2.0) * utils::PI / 180.0) * 2.0,
             viewWidth = viewHeight / ((double)h / (double)w);
 
         Vec3 botLeftLocal(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
@@ -360,7 +373,7 @@ int main()
                 riQueueShared.push_back({shape->mat.refractIndex, shape});
         }
 
-        #pragma omp parallel for num_threads(12)
+        #pragma omp parallel for num_threads(5)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -376,8 +389,8 @@ int main()
                 double u, v;
                 if (randomizeSampleDir)
                 {
-                    v = 1.0 - ((double)y + (RandNum() - 0.5) / 2.0) / (double)h;
-                    u = ((double)x + (RandNum() - 0.5) / 2.0) / (double)w;
+                    v = 1.0 - ((double)y + (utils::RandNum() - 0.5) / 2.0) / (double)h;
+                    u = ((double)x + (utils::RandNum() - 0.5) / 2.0) / (double)w;
                 }
                 else
                 {
@@ -399,12 +412,12 @@ int main()
                     pixPos += cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5));
 
                 Ray ray(pixPos, pixDir);
-                Hit hit = {};
+                Hit hit = {0.0, pixPos, pixDir, nullptr};
 
                 std::vector<Refraction> riQueue;
                 riQueue = riQueueShared;
 
-                SurfaceHitInfo hitSurface = CastRayInScene(scene, ray, hit, riQueue);
+                SurfaceHitInfo hitSurface = scene.CastRay(ray, hit, riQueue);
                 hitCol += (hitSurface.surfaceColor * hitSurface.cumulativeLight) + hitSurface.surfaceEmission;
             }
             hitCol /= perPixelSamples;
@@ -421,6 +434,8 @@ int main()
                 frame[i] = hitCol;
                 toRender = frame[i];
             }
+
+            //toRender = toRender.ApplyGamma(1.5);
             toRender.Clamp();
 
             img.setPixel(x, y, {

@@ -67,17 +67,17 @@ struct AABB : Shape
             hit->origin = ray.origin + (ray.dir * hit->len);
             hit->target = (void*)this;
 
-            if (abs(hit->origin.x - min.x) < MINVAL)
+            if (abs(hit->origin.x - min.x) < utils::MINVAL)
                 hit->normal = Vec3(-1, 0, 0);
-            else if (abs(hit->origin.x - max.x) < MINVAL)
+            else if (abs(hit->origin.x - max.x) < utils::MINVAL)
                 hit->normal = Vec3(1, 0, 0);
-            else if (abs(hit->origin.y - min.y) < MINVAL)
+            else if (abs(hit->origin.y - min.y) < utils::MINVAL)
                 hit->normal = Vec3(0, -1, 0);
-            else if (abs(hit->origin.y - max.y) < MINVAL)
+            else if (abs(hit->origin.y - max.y) < utils::MINVAL)
                 hit->normal = Vec3(0, 1, 0);
-            else if (abs(hit->origin.z - min.z) < MINVAL)
+            else if (abs(hit->origin.z - min.z) < utils::MINVAL)
                 hit->normal = Vec3(0, 0, -1);
-            else if (abs(hit->origin.z - max.z) < MINVAL)
+            else if (abs(hit->origin.z - max.z) < utils::MINVAL)
                 hit->normal = Vec3(0, 0, 1);
         }
 
@@ -110,7 +110,7 @@ struct OBB : Shape
     {
         axes[0].Normalize();
 
-        if (abs(abs(axes[0].Dot(axes[1].Cross(axes[2]))) - 1.0) > MINVAL)
+        if (abs(abs(axes[0].Dot(axes[1].Cross(axes[2]))) - 1.0) > utils::MINVAL)
         {
             std::cout << "Warning: Provided base vectors in OBB constructor are not orthogonal. Substituting with normals of x-axis.\n";
 
@@ -153,7 +153,7 @@ struct OBB : Shape
             double e = axis.Dot(p);
             double f = axis.Dot(ray.dir);
 
-            if (abs(f) > MINVAL)
+            if (abs(f) > utils::MINVAL)
             {
                 Vec3 tnMin = axis;
                 Vec3 tnMax = axis * -1.0;
@@ -235,7 +235,7 @@ struct Sphere : Shape
         Vec3 qc = oc - ray.dir * b;
         double h = rad * rad - qc.Dot(qc);
 
-        if (h < -MINVAL)
+        if (h < -utils::MINVAL)
             return false;
 
         h = sqrt(std::max(0.0, h));
@@ -292,7 +292,7 @@ struct Hemisphere : Shape
         Vec3 qc = oc - ray.dir * b;
         double h = rad * rad - qc.Dot(qc);
 
-        if (h < -MINVAL)
+        if (h < -utils::MINVAL)
             return false;
 
         h = sqrt(std::max(0.0, h));
@@ -377,7 +377,7 @@ struct Tri : Shape
         Vec3 h = ray.dir.Cross(edge2);
         double a = edge1.Dot(h);
 
-        if (a > -MINVAL && a < MINVAL)
+        if (a > -utils::MINVAL && a < utils::MINVAL)
             return false;
 
         Vec3 s = ray.origin - v0;
