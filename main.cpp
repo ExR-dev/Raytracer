@@ -20,7 +20,7 @@ int main()
     Cam cam(
         80.0f, true,
         Vec3(2.5, 2.5, -1.0),
-        { 0.0, -0.5, 1.0 }
+        { 0.0, -0.33, 1.0 }
     );
 
     Scene scene(true, true, 2, 0, Color());
@@ -36,122 +36,44 @@ int main()
     scene.lightPtrs = lightPtrs;
     scene.lightCount = lightCount;
 
+    Vec3 sunPos(0.8, 0.4, -0.3);
+    double sunLen = 100000.0;
+    sunPos.Normalize();
+    sunPos *= sunLen;
 
     Shape* shapePtrs[] = {
-        /*new Tri( // Light
-            Vec3(1.75, 3.99, 1.0),
-            Vec3(3.25, 3.99, 2.5),
-            Vec3(1.75, 3.99, 2.5),
-            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(1,1,1), 2.5)
+        new Sphere(
+            sunLen, Vec3(0, 0, 0),
+            Material(Color(0.45, 0.7, 1.0), 1, 1, 0, Color(0.75, 0.85, 1.0), 0.15)
         ),
-        new Tri(
-            Vec3(3.25, 3.99, 2.5),
-            Vec3(1.75, 3.99, 1.0),
-            Vec3(3.25, 3.99, 1.0),
-            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(1,1,1), 2.5)
-        ),*/
-        new Sphere( // Light
-            0.1, Vec3(2.5, 4.0, 1.75),
-            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(1,1,1), 25.0)
+        new Sphere(
+            10000.0, sunPos,
+            Material(Color(1.0, 0.8, 0.35), 1, 1, 0, Color(1.0, 0.8, 0.35), 15)
+        ),
+
+        new Plane(
+            Vec3(0,0,0),
+            Vec3(0,1,0),
+            Material(Color(0.75, 0.95, 0.5), 1, 1, 0, Color(0,0,0), 0)
         ),
 
 
-        /*new Sphere(
-            1.0, Vec3(2.5, 2.0, 1.75),
-            Material(Color(1.0, 0.2, 0.2), 0.1, 1.8, 0.0, Color(0,0,0), 0.0)
-        ),*/
-        new Hemisphere(
-            0.5, Vec3(2.5, 2.0, 1.75),
-            Vec3(0.0, -1.0, 0.0),
-            //Material(Color(1.0, 0.0, 0.0), 0.0, 2.9, 0.0, Color(0,0,0), 0.0)
-            Material(Color(1.0, 0.0, 0.0), 0.05, 1.5, 0.0, Color(0,0,0), 0.0)
+
+        new Sphere(
+            1.5, Vec3(-3.0, 1.5, 0.0),
+            Material(Color(1,1,1), 0.05, 1.5, 0, Color(0,0,0), 0)
         ),
+
+        new Sphere(
+            1.0, Vec3(3.0, 0.5, 0.0),
+            Material(Color(0.25, 0.25, 0.25), 1, 1, 0, Color(0,0,0), 0)
+        ),
+
         new AABB(
-            Vec3(1.75, -0.01, 1.0),
-            Vec3(3.25, 0.00, 2.5),
-            Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0, Color(0.0, 0.0, 0.0), 0.0)
+            Vec3(1.75, 0.0, 0.2),
+            Vec3(2.5, 0.75, 1.8),
+            Material(Color(1.0, 0.25, 0.66), 1, 1, 0, Color(0,0,0), 0)
         ),
-
-
-        /*new Tri( // Floor
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(5.0, 0.0, 3.5),
-            Vec3(5.0, 0.0, 0.0),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(5.0, 0.0, 3.5),
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(0.0, 0.0, 3.5),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-
-        new Tri( // Roof
-            Vec3(0.0, 4.0, 0.0),
-            Vec3(5.0, 4.0, 3.5),
-            Vec3(0.0, 4.0, 3.5),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(5.0, 4.0, 3.5),
-            Vec3(0.0, 4.0, 0.0),
-            Vec3(5.0, 4.0, 0.0),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-
-
-        new Tri( // Front
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(5.0, 0.0, 0.0),
-            Vec3(5.0, 4.0, 0.0),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(5.0, 4.0, 0.0),
-            Vec3(0.0, 4.0, 0.0),
-            Vec3(0.0, 0.0, 0.0),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-
-        new Tri( // Back
-            Vec3(5.0, 0.0, 3.5),
-            Vec3(0.0, 0.0, 3.5),
-            Vec3(5.0, 4.0, 3.5),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(0.0, 4.0, 3.5),
-            Vec3(5.0, 4.0, 3.5),
-            Vec3(0.0, 0.0, 3.5),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-
-
-        new Tri( // Left
-            Vec3(0.0, 0.0, 0.0),
-            Vec3(0.0, 4.0, 0.0),
-            Vec3(0.0, 0.0, 3.5),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(0.0, 4.0, 3.5),
-            Vec3(0.0, 0.0, 3.5),
-            Vec3(0.0, 4.0, 0.0),
-            Material(Color(0,0,0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-
-        new Tri( // Right
-            Vec3(5.0, 0.0, 0.0),
-            Vec3(5.0, 0.0, 3.5),
-            Vec3(5.0, 4.0, 0.0),
-            Material(Color(0, 0, 0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),
-        new Tri(
-            Vec3(5.0, 4.0, 3.5),
-            Vec3(5.0, 4.0, 0.0),
-            Vec3(5.0, 0.0, 3.5),
-            Material(Color(0, 0, 0), 1.0, 1.0, 0.0, Color(), 0.0)
-        ),*/
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(Shape*);
 
@@ -224,7 +146,7 @@ int main()
         disableScanSpeed = true;
         scanSpeed = dim;
         giveControl = false;
-        perPixelSamples = 1;
+        perPixelSamples = 8;
     }
 
 
@@ -438,7 +360,7 @@ int main()
                 riQueueShared.push_back({shape->mat.refractIndex, shape});
         }
 
-        #pragma omp parallel for num_threads(6)
+        #pragma omp parallel for num_threads(12)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)

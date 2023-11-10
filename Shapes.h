@@ -259,6 +259,10 @@ struct Sphere : Shape
             hit->len = t0;
             hit->origin = ray.origin + ray.dir * hit->len;
             hit->normal = (hit->origin - center) / rad;
+
+            if (hit->normal.Dot(ray.dir) > 0.0)
+                hit->normal *= -1.0;
+
             hit->target = (void*)this;
         }
         return true;

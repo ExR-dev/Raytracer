@@ -76,7 +76,6 @@ struct SurfaceHitInfo
     {}
 };
 
-
 struct Refraction
 {
     double ri;
@@ -91,6 +90,7 @@ struct Refraction
         return !(*this == r);
     }
 };
+
 
 SurfaceHitInfo CastRayInScene(Scene& scene, Ray ray, Hit& hit, std::vector<Refraction> riQueue, int bounce = 0)
 {
