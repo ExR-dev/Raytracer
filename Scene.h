@@ -15,9 +15,10 @@
 
 struct SurfaceHitInfo
 {
-    Color surfaceColor;
-    Color surfaceEmission;
-    Color cumulativeLight;
+    Color 
+        surfaceColor,
+        surfaceEmission,
+        cumulativeLight;
 
     SurfaceHitInfo(Color surfaceColor, Color surfaceEmission, Color cumulativeLight) :
         surfaceColor(surfaceColor), surfaceEmission(surfaceEmission), cumulativeLight(cumulativeLight)
@@ -305,10 +306,9 @@ struct Scene
         {
             if (sky != nullptr)
             {
-                if (bounce == 0)
-                    surface.surfaceEmission = sky->Sample(ray.dir, true);
-                else
-                    surface.surfaceEmission = sky->Sample(ray.dir, true) * abs(hit.normal.Dot(-ray.dir));
+                surface.surfaceEmission = sky->Sample(ray.dir, true);
+                if (bounce != 0)
+                    surface.surfaceEmission *= abs(hit.normal.Dot(-ray.dir));
             }
         }
 

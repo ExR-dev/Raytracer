@@ -148,6 +148,9 @@
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Vec3.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="RaytracerShader.frag" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

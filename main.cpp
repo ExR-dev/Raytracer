@@ -6,17 +6,22 @@
 #include "Shapes.h"
 #include "Lights.h"
 #include "Scene.h"
+#include "SFML/Graphics/Shader.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
-#include <cmath>
 #include <omp.h>
 #include <new>
+#include <math.h>
+
 
 
 
 int main()
 {
+    if (!sf::Shader::isAvailable())
+        return 1;
+
     // Build Scene
     Cam cam(
         75.0f, true,
@@ -25,8 +30,8 @@ int main()
     );
 
     /*Skybox sky(
-        Color(0.25, 0.7, 1.0), 0.15,
-        Color(0.75, 0.9, 1.0), 0.3,
+        Color(0.25, 0.7, 1.0), 0.05,
+        Color(0.75, 0.9, 1.0), 0.1,
         Color(1.0, 0.8, 0.4), 15.0,
         Vec3(1.0, 1.0, 1.0), 0.025, 0.15
     );*/
@@ -56,11 +61,11 @@ int main()
         //0
         new Sphere(
             sunLen, Vec3(0, 0, 0),
-            Material(Color(0.55, 0.75, 1.0), 1, 1, 0, Color(0.75, 0.85, 1.0), 0.15)
+            Material(Color(0.5, 0.65, 1.0), 1, 1, 0, Color(0.1, 0.25, 0.85), 0.01)
         ),
         new Sphere(
             7500.0, sunPos,
-            Material(Color(1.0, 0.85, 0.4), 1, 1, 0, Color(1.0, 0.8, 0.35), 15)
+            Material(Color(1.0, 0.85, 0.4), 1, 1, 0, Color(1.0, 0.75, 0.45), 50)
         ),
 
         new Plane(
@@ -72,7 +77,7 @@ int main()
 
         new Sphere(
             1.5, Vec3(3.5, 1.5, -3.0),
-            Material(Color(1,1,1), 0.1, riGlass, 0, Color(0,0,0), 0)
+            Material(Color(1,1,1), 0.0, riGlass, 0, Color(0,0,0), 0)
         ),
 
         new Sphere(
@@ -113,6 +118,9 @@ int main()
         sf::Style::Fullscreen
     );
 
+    sf::RenderTexture renderTex;
+    renderTex.create(w, h);
+
     unsigned int
         sW = window.getSize().x,
         sH = window.getSize().y;
@@ -130,9 +138,13 @@ int main()
     sf::Image img;
     sf::Texture tex;
     sf::Sprite sprite;
+    sf::Sprite drawSprite;
+    sf::Shader shader;
 
     img.create(w, h, sf::Color::Black);
-    sprite.setScale((float)scaleW, (float)scaleH);
+    //sprite.setScale((float)scaleW, (float)scaleH);
+    drawSprite.setScale((float)scaleW, (float)scaleH);
+    shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment);
 
 
     sf::Clock clock;
@@ -373,7 +385,7 @@ int main()
                 riQueueShared.push_back({shape->mat.refractIndex, shape});
         }
 
-        #pragma omp parallel for num_threads(5)
+        #pragma omp parallel for num_threads(4)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -418,7 +430,7 @@ int main()
                 riQueue = riQueueShared;
 
                 SurfaceHitInfo hitSurface = scene.CastRay(ray, hit, riQueue);
-                hitCol += (hitSurface.surfaceColor * hitSurface.cumulativeLight) + hitSurface.surfaceEmission;
+                hitCol += (hitSurface.surfaceColor * hitSurface.cumulativeLight.ApplyGamma(1.5)) + hitSurface.surfaceEmission;
             }
             hitCol /= perPixelSamples;
 
@@ -455,8 +467,13 @@ int main()
         tex.loadFromImage(img);
         sprite.setTexture(tex);
 
+        //renderTex.clear();
+        shader.setUniform("texture", sf::Shader::CurrentTexture);
+        renderTex.draw(sprite, &shader);
+        drawSprite.setTexture(renderTex.getTexture());
+
         window.clear();
-        window.draw(sprite);
+        window.draw(drawSprite);
         window.display();
     }
 
