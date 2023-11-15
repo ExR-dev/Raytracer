@@ -17,15 +17,14 @@
 struct Cam
 {
     float fov;
-    bool perspective;
 
     Vector3D
         origin,
         fwd, right, up;
 
 
-    Cam(float fov, bool perspective, const Vector3D& origin, const Vector3D& forward) :
-        fov(fov), perspective(perspective), origin(origin), 
+    Cam(float fov, const Vector3D& origin, const Vector3D& forward) :
+        fov(fov), origin(origin), 
         fwd(forward), right({0,0,0}), up({0,0,0})
     {
         fwd.Normalize();
@@ -83,15 +82,14 @@ int main()
 {
     // Build Scene
     Cam cam(
-        //70.0f, true,
-        70.0f, false,
+        70.0f,
         Vector3D(0.0, 0.0, -5.0),
         {0.0, 0.0, 1.0}
     );
 
     Shape* shapePtrs[] = {
         new Plane(
-            Vector3D(1, 1, 1),
+            Vector3D(0.0, 0.15, 0.8),
             Vector3D(0, 0, 10),
             Vector3D(0, 0, -1)
         ),
@@ -100,6 +98,86 @@ int main()
             Vector3D(1.0, 0.5, 0.5),
             Vector3D(0.0, 0.0, 3.0), 
             1.0
+        ),
+
+
+        new OBB( // Physically Inaccurate Sun
+            Vector3D(5.75, 5.0, 1.0),
+            Vector3D(-3.0, 3.0, 10.0),
+            Vector3D(1, 0, 0),
+            Vector3D(0, 1, 0),
+            Vector3D(0, 0, 1),
+            0.3, 0.3, 0.3
+        ),
+        new Sphere( // Moon
+            Vector3D(1.25, 1.28, 1.27),
+            Vector3D(-6.0, 1.0, 8.0), 
+            0.25
+        ),
+        new Sphere( // Water
+            Vector3D(0.1, 0.4, 1.0),
+            Vector3D(-4.0, 0.0, 5.0), 
+            1.0
+        ),
+        new Sphere( // North pole
+            Vector3D(0.9, 0.95, 1.0),
+            Vector3D(-4.0, 0.03, 5.0),
+            0.976
+        ),
+        new Sphere( // South pole
+            Vector3D(0.9, 0.95, 1.0),
+            Vector3D(-4.0, -0.035, 5.0),
+            0.975
+        ),
+        new Sphere( // North America
+            Vector3D(0.4, 1.0, 0.2),
+            Vector3D(-4.03, 0.0165, 4.975),
+            0.9595
+        ),
+        new Sphere( // Practically Brazil
+            Vector3D(0.4, 1.0, 0.2),
+            Vector3D(-4.029, -0.0075, 4.975),
+            0.962
+        ),
+        new Sphere( // South South America
+            Vector3D(0.4, 1.0, 0.2),
+            Vector3D(-4.032, -0.0178, 4.975),
+            0.95625
+        ),
+        new Sphere( // Europe
+            Vector3D(0.375, 0.95, 0.2),
+            Vector3D(-3.9975, 0.016, 4.97),
+            0.9678
+        ),
+        new Sphere( // Asia
+            Vector3D(0.4, 1.0, 0.2),
+            Vector3D(-3.977, 0.015, 4.975),
+            0.967
+        ),
+        new Sphere( // Mid Africa
+            Vector3D(1.0, 0.95, 0.45),
+            Vector3D(-3.9975, -0.005, 4.9675),
+            0.9678
+        ),
+        new Sphere( // West Africa
+            Vector3D(1.0, 0.95, 0.45),
+            Vector3D(-4.006, -0.004, 4.9675),
+            0.9672
+        ),
+        new Sphere( // South Africa
+            Vector3D(1.0, 0.95, 0.45),
+            Vector3D(-3.9975, -0.014, 4.9675),
+            0.965
+        ),
+        new Sphere( // Oceania
+            Vector3D(1.0, 0.9, 0.3),
+            Vector3D(-3.97, -0.015, 4.975),
+            0.95875
+        ),
+        new Sphere( // You Are Here
+            Vector3D(2.0, 0.0, 0.0),
+            Vector3D(-4.125, 0.65, 4.25),
+            0.025
         ),
 
         new Triangle(
@@ -135,10 +213,7 @@ int main()
 
     double viewHeight, viewWidth;
 
-    if (cam.perspective)
-        viewHeight = tan(((double)cam.fov / 2.0) * (3.14159265 / 180.0)) * 2.0;
-    else
-        viewHeight = (double)cam.fov / 8.0;
+    viewHeight = (double)cam.fov / 8.0;
     viewWidth = viewHeight / ((double)height / (double)width);
 
     Vector3D botLeftLocal(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
@@ -158,14 +233,7 @@ int main()
             pixPos = cam.origin,
             pixDir = cam.fwd;
 
-        if (cam.perspective)
-        {
-            Vector3D dirLocal = botLeftLocal + Vector3D(viewWidth * u, viewHeight * v, 0.0);
-            pixDir = (cam.right * dirLocal.GetX()) + (cam.up * dirLocal.GetY()) + (cam.fwd * dirLocal.GetZ());
-            pixDir.Normalize();
-        }
-        else
-            pixPos = pixPos + cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5));
+        pixPos = pixPos + cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5));
 
         Ray ray(pixPos, pixDir);
         Vector3D hitSurface = CastRayInScene(scene, ray);
