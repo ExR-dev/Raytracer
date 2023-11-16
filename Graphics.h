@@ -311,7 +311,6 @@ constexpr double riGlass = 1.52;
 
 struct Material
 {
-
     Color col;
     double opacity;
     double refractIndex;

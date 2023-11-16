@@ -1,3 +1,4 @@
+#version 120
 
 /*=============================================================================*/
 /*                                    UTILS                                    */
@@ -8,20 +9,47 @@ const float MINVAL = 0.00000001;
 const float MAXVAL = 100000000.0;
 
 
-uniform float rndSeed;
+uniform float rndSeedX;
+uniform float rndSeedY;
 
-float RandNum(vec2 p)
+float RandNum(in vec2 p)
 {
     // We need irrationals for pseudo randomness.
     // Most (all?) known transcendental numbers will (generally) work.
     const vec2 r = vec2(
       23.1406926327792690,  // e^pi (Gelfond's constant)
        2.6651441426902251); // 2^sqrt(2) (Gelfond–Schneider constant)
-    
+       
     return fract(cos(mod(
         123456789.0, 
         1e-7 + 256.0 * dot(p, r)
     )));  
+}
+
+vec3 RandDir()
+{
+    while (true)
+    {
+        vec2 seed = vec2(gl_TexCoord[0]) + vec2(rndSeedX, rndSeedY);
+
+        vec3 v;
+        do     v = (vec3(RandNum(seed), RandNum(seed), RandNum(seed)) * 2.0) - 1.0;
+        while (v.x*v.x + v.y*v.y + v.z*v.z > 1.0);
+
+        float m = length(v);
+        if (m > MINVAL)
+            return v / m;
+    }
+}
+
+float Lerp(float p0, float p1, float t)
+{
+    return (1.0 - t) * p0 + t * p1;
+}
+
+vec3 Lerp(vec3 p0, vec3 p1, float t)
+{
+    return (1.0 - t) * p0 + t * p1;
 }
 
 /*=============================================================================*/
@@ -38,7 +66,7 @@ float RandNum(vec2 p)
 /*                                   SHAPES                                    */
 /*=============================================================================*/
 
-bool CheckBounds(vec3 rO, vec3 irD, vec3 bMin, vec3 bMax)
+bool CheckBounds(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
 {
     float tx1 = (bMin.x - rO.x) * irD.x;
     float tx2 = (bMax.x - rO.x) * irD.x;
@@ -69,15 +97,17 @@ const vec3 aabbShapes[AABBCOUNT * 2] = vec3[AABBCOUNT * 2](
     vec3(0.0, 0.0, 0.0), vec3(8.0, 2.0, 1.0),
     vec3(8.0, 0.0, 3.0), vec3(8.1, 8.0, 3.1)
 );
-const vec4 aabbColors[AABBCOUNT] = vec4[AABBCOUNT](
-    vec4(1.0, 1.0, 1.0, 1.0),
-    vec4(1.0, 1.0, 1.0, 1.0)
+const vec4 aabbMats[AABBCOUNT * 3] = vec4[AABBCOUNT * 3](
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayAABBIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 n)
+bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
 {
-    vec3 inv_dir = 1.0 / rD;
     i *= 2;
+
+    vec3 inv_dir = 1.0 / rD;
 
     float tx1 = (aabbShapes[i].x - rO.x) * inv_dir.x;
     float tx2 = (aabbShapes[i+1].x - rO.x) * inv_dir.x;
@@ -132,12 +162,13 @@ const vec3 obbShapes[OBBCOUNT * 5] = vec3[OBBCOUNT * 5](
     vec3(2.5, 1.25, 5.0), vec3(2.5, 2.0, 0.1),
     vec3(0.71, 0.71, 0.0), vec3(-0.71, 0.71, 0.0), vec3(0.0, 0.0, 1.0)
 );
-const vec4 obbColors[OBBCOUNT] = vec4[OBBCOUNT](
-    vec4(1.0, 1.0, 0.0, 1.0),
-    vec4(1.0, 0.2, 0.2, 1.0)
+const vec4 obbMats[OBBCOUNT * 3] = vec4[OBBCOUNT * 3](
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    vec4(1.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 0.2, 0.2, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayOBBIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 n)
+bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
 {
     i *= 5;
     float 
@@ -212,17 +243,20 @@ bool RayOBBIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 
 
 
 // SPHERE
-#define SPHERECOUNT 2
+#define SPHERECOUNT 3
 const vec4 sphereShapes[SPHERECOUNT] = vec4[SPHERECOUNT](
     vec4(0.0, 1.0, 2.0, 1.4),
-    vec4(1.0, 1.5, 2.5, 0.75)
+    vec4(1.0, 1.5, 2.5, 0.75),
+    vec4(-1000000.0, 1000000.0, 500000.0, 1000000.0)
 );
-const vec4 sphereColors[SPHERECOUNT] = vec4[SPHERECOUNT](
-    vec4(1.0, 0.0, 1.0, 1.0),
-    vec4(0.0, 0.0, 1.0, 1.0)
+const vec4 sphereMats[SPHERECOUNT * 3] = vec4[SPHERECOUNT * 3](
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    vec4(1.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 0.5, 1.0), vec4(1.0, 1.0, 0.6, 10.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RaySphereIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 n)
+bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
 {
     vec3 oc = rO - sphereShapes[i].xyz;
     float b = dot(oc, rD);
@@ -265,22 +299,24 @@ bool RaySphereIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out ve
 
 // TRI
 #define TRICOUNT 1
-const vec3 triShapes[TRICOUNT*3] = vec3[TRICOUNT*3](
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.)
+const vec3 triShapes[TRICOUNT * 3] = vec3[TRICOUNT * 3](
+    vec3(-3.0, 0.0, -5.0), vec3(-4.0, 2.5, -4.5), vec3(-3.0, 0.0, -2.0)
 );
-const vec4 triColors[TRICOUNT] = vec4[TRICOUNT](
-    vec4(0.0, 0.0, 0.0, 1.0)
+const vec4 triMats[TRICOUNT * 3] = vec4[TRICOUNT * 3](
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    vec4(0.1, 0.1, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayTriIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 n)
+bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
 {
-    vec3 edge1 = triShapes[i*3+1] - triShapes[i*3];
-    vec3 edge2 = triShapes[i*3+2] - triShapes[i*3];
+    i *= 3;
+    vec3 edge1 = triShapes[i+1] - triShapes[i];
+    vec3 edge2 = triShapes[i+2] - triShapes[i];
 
     // Backface-culling
-    vec3 iN = cross(edge1, edge2);
+    /*vec3 iN = cross(edge1, edge2);
     if (dot(iN, rD) >= 0.0)
-        return false;
+        return false;*/
 
     vec3 h = cross(rD, edge2);
     float a = dot(edge1, h);
@@ -288,7 +324,7 @@ bool RayTriIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 
     if (a > -MINVAL && a < MINVAL)
         return false;
 
-    vec3 s = rO - triShapes[i*3];
+    vec3 s = rO - triShapes[i];
     float f = 1.0 / a;
     float u = f * dot(s, h);
 
@@ -308,6 +344,8 @@ bool RayTriIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 
         l = t;
         p = rO + rD * t;
         n = normalize(cross(edge1, edge2));
+        if (dot(n, rD) > 0.0)
+            n *= -1.0;
         return true;
     }
     return false;
@@ -320,28 +358,31 @@ bool RayTriIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 
 const vec3 planeShapes[PLANECOUNT * 2] = vec3[PLANECOUNT * 2](
     vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0)
 );
-const vec4 planeColors[PLANECOUNT] = vec4[PLANECOUNT](
-    vec4(0.0, 1.0, 0.0, 1.0)
+const vec4 planeMats[PLANECOUNT * 3] = vec4[PLANECOUNT * 3](
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    vec4(0.0, 1.0, 0.0, 1.0), vec4(0.3, 0.5, 1.0, 0.05), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayPlaneIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec3 n)
+bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
 {
-    float a = dot(planeShapes[i*2+1], rD);
+    i *= 2;
+    float a = dot(planeShapes[i+1], rD);
 
-    if ((a >= 0.0) != (dot(planeShapes[i*2+1], planeShapes[i*2] - rO) >= 0.0))
+    if ((a >= 0.0) != (dot(planeShapes[i+1], planeShapes[i] - rO) >= 0.0))
         return false;
 
-    if (dot(planeShapes[i*2+1], planeShapes[i*2] - rO) >= 0.0)
+    if (dot(planeShapes[i+1], planeShapes[i] - rO) >= 0.0)
         return false;
 
-    float t = (dot(planeShapes[i*2+1], planeShapes[i*2]) - dot(planeShapes[i*2+1], rO)) / a;
+    float t = (dot(planeShapes[i+1], planeShapes[i]) - dot(planeShapes[i+1], rO)) / a;
 
     l = t;
     p = rO + rD * t;
-    n = planeShapes[i*2+1];
+    n = planeShapes[i+1];
     return true;
 }
 // PLANE
+
 
 /*=============================================================================*/
 /*                                   SHAPES                                    */
@@ -356,6 +397,8 @@ bool RayPlaneIntersect(vec3 rO, vec3 rD, int i, out float l, out vec3 p, out vec
 /*                                  RENDERING                                  */
 /*=============================================================================*/
 
+const int MAXBOUNCES = 1;
+
 uniform vec3 camPos;
 uniform vec3 camFwd;
 uniform vec3 camUp;
@@ -364,9 +407,11 @@ uniform vec3 camRight;
 uniform float viewHeight;
 uniform float viewWidth;
 
+uniform bool disableLighting;
 
 
-bool GetFirstHit(vec3 rO, vec3 rD, inout float l, out vec3 p, out vec3 n, out vec4 col)
+
+bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, out vec3 p, out vec3 n, out vec4 col, out vec4 emission, out vec4 surface)
 {
     rO += rD * MINVAL;
 
@@ -380,8 +425,13 @@ bool GetFirstHit(vec3 rO, vec3 rD, inout float l, out vec3 p, out vec3 n, out ve
         {
             if (nl < l)
             {
-                l = nl; p = np; n = nn;
-                col = aabbColors[i];
+                l = nl; 
+                p = np; 
+                n = nn;
+
+                col = aabbMats[i*3];
+                emission = aabbMats[i*3+1];
+                surface = aabbMats[i*3+2];
                 hasHit = true;
             }
         }
@@ -393,47 +443,67 @@ bool GetFirstHit(vec3 rO, vec3 rD, inout float l, out vec3 p, out vec3 n, out ve
         {
             if (nl < l)
             {
-                l = nl; p = np; n = nn;
-                col = obbColors[i];
+                l = nl; 
+                p = np; 
+                n = nn;
+
+                col = obbMats[i*3];
+                emission = obbMats[i*3+1];
+                surface = obbMats[i*3+2];
                 hasHit = true;
             }
         }
     }
-
+    
     for (int i = 0; i < SPHERECOUNT; i++)
     {
         if (RaySphereIntersect(rO, rD, i, nl, np, nn))
         {
             if (nl < l)
             {
-                l = nl; p = np; n = nn;
-                col = sphereColors[i];
+                l = nl; 
+                p = np; 
+                n = nn;
+
+                col = sphereMats[i*3];
+                emission = sphereMats[i*3+1];
+                surface = sphereMats[i*3+2];
                 hasHit = true;
             }
         }
     }
-
+    
     for (int i = 0; i < TRICOUNT; i++)
     {
         if (RayTriIntersect(rO, rD, i, nl, np, nn))
         {
             if (nl < l)
             {
-                l = nl; p = np; n = nn;
-                col = triColors[i];
+                l = nl; 
+                p = np; 
+                n = nn;
+
+                col = triMats[i*3];
+                emission = triMats[i*3+1];
+                surface = triMats[i*3+2];
                 hasHit = true;
             }
         }
     }
-
+    
     for (int i = 0; i < PLANECOUNT; i++)
     {
         if (RayPlaneIntersect(rO, rD, i, nl, np, nn))
         {
             if (nl < l)
             {
-                l = nl; p = np; n = nn;
-                col = planeColors[i];
+                l = nl; 
+                p = np; 
+                n = nn;
+
+                col = planeMats[i*3];
+                emission = planeMats[i*3+1];
+                surface = planeMats[i*3+2];
                 hasHit = true;
             }
         }
@@ -443,17 +513,96 @@ bool GetFirstHit(vec3 rO, vec3 rD, inout float l, out vec3 p, out vec3 n, out ve
 }
 
 
-vec4 Raytrace(in vec3 rO, in vec3 rD, in int bounce)
+void RaytraceTwo(in vec3 rO, in vec3 rD, in int bounce, out vec4 surfaceColor, out vec4 surfaceEmission, out vec4 cumulativeLight)
 {
     float l = MAXVAL;
     vec3 p, n;
-    vec4 col = vec4(0);
-    bool hasHit = GetFirstHit(rO, rD, l, p, n, col);
 
-    if (hasHit) 
-        col /= log2(2.0 + l / 16.0);
+    if (bounce > 0)
+        rO += rD * MINVAL;
 
-    return col;
+    surfaceColor = vec4(0);
+    surfaceEmission = vec4(0);
+    cumulativeLight = vec4(0);
+
+    vec4 color = vec4(0);
+    vec4 emission = vec4(0);
+    vec4 surface = vec4(0);
+
+    if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
+    {
+        surfaceColor += color;
+        surfaceEmission += emission;
+
+        /*if (disableLighting)
+        {
+            cumulativeLight = vec4(1);
+        }
+        else if (bounce <= MAXBOUNCES)
+        {
+            vec4 totCol = vec4(0);
+
+            vec3 randDir = n + RandDir();
+            vec3 reflectDir = reflect(rD, n);
+            vec3 bounceDir = Lerp(randDir, reflectDir, surface.x); // surface.x is reflectivity
+
+            vec4 bounceSurfaceColor = vec4(0);
+            vec4 bounceSurfaceEmission = vec4(0);
+            vec4 bounceCumulativeLight = vec4(0);
+
+            //Raytrace(p, bounceDir, bounce + 1, bounceSurfaceColor, bounceSurfaceEmission, bounceCumulativeLight);
+            vec4 bounceCol = (bounceSurfaceColor * bounceCumulativeLight) + bounceSurfaceEmission;
+            totCol += bounceCol;
+
+            cumulativeLight += totCol;
+        }*/
+    }
+}
+
+void Raytrace(in vec3 rO, in vec3 rD, in int bounce, out vec4 surfaceColor, out vec4 surfaceEmission, out vec4 cumulativeLight)
+{
+    float l = MAXVAL;
+    vec3 p, n;
+
+    if (bounce > 0)
+        rO += rD * MINVAL;
+
+    surfaceColor = vec4(0);
+    surfaceEmission = vec4(0);
+    cumulativeLight = vec4(0);
+
+    vec4 color = vec4(0);
+    vec4 emission = vec4(0);
+    vec4 surface = vec4(0);
+
+    if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
+    {
+        surfaceColor += color;
+        surfaceEmission += emission;
+
+        if (disableLighting)
+        {
+            cumulativeLight = vec4(1);
+        }
+        else if (bounce <= MAXBOUNCES)
+        {
+            vec4 totCol = vec4(0);
+
+            vec3 randDir = n + RandDir();
+            vec3 reflectDir = reflect(rD, n);
+            vec3 bounceDir = Lerp(randDir, reflectDir, surface.x); // surface.x is reflectivity
+
+            vec4 bounceSurfaceColor = vec4(0);
+            vec4 bounceSurfaceEmission = vec4(0);
+            vec4 bounceCumulativeLight = vec4(0);
+
+            RaytraceTwo(p, bounceDir, bounce + 1, bounceSurfaceColor, bounceSurfaceEmission, bounceCumulativeLight);
+            vec4 bounceCol = (bounceSurfaceColor * bounceCumulativeLight) + bounceSurfaceEmission;
+            totCol += bounceCol;
+
+            cumulativeLight += totCol;
+        }
+    }
 }
 
 /*=============================================================================*/
@@ -470,28 +619,34 @@ vec4 Raytrace(in vec3 rO, in vec3 rD, in int bounce)
 
 uniform sampler2D lastFrame;
 uniform int frameCount;
+uniform int samples = 1;
 
 
 void main(void)
 {
     vec3 botLeftLocal = vec3(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
     vec4 lFrame = texture2D(lastFrame, vec2(gl_TexCoord[0].x, 1.0 - gl_TexCoord[0].y));
-
+    
     vec2 uv = vec2(gl_TexCoord[0].x, 1.0 - gl_TexCoord[0].y);
     vec3 dirLocal = botLeftLocal + vec3(viewWidth * uv.x, viewHeight * uv.y, 0.0);
     vec3 pixDir = camRight * dirLocal.x + camUp * dirLocal.y + camFwd * dirLocal.z;
     pixDir = normalize(pixDir);
 
-    vec4 col = Raytrace(camPos, pixDir, 0);
-    gl_FragColor = col;
+    vec4 surfaceColor;
+    vec4 surfaceEmission;
+    vec4 cumulativeLight;
 
-    /*
+    vec4 outCol = vec4(0);
+    for (int i = 0; i < samples; i++)
+    {
+        Raytrace(camPos, pixDir, 0, surfaceColor, surfaceEmission, cumulativeLight);
+        outCol += (surfaceColor * cumulativeLight) + surfaceEmission;
+    }
+    outCol /= samples;
+
     float avgWeight = 1.0 / (float(frameCount) + 1.0);
-    col = (lFrame * (1.0 - avgWeight)) + (col * avgWeight);
-
-    // multiply it by the color
-    gl_FragColor = gl_Color * col;
-    */
+    outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
+    gl_FragColor = outCol;
 }
 
 /*=============================================================================*/

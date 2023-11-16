@@ -10,7 +10,6 @@
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
-#include <omp.h>
 #include <new>
 #include <math.h>
 
@@ -142,15 +141,15 @@ int main()
     {
         //cam.perspective = false;
         //cam.fov = 1.0f;
-        scene.disableLighting = true;
+        scene.disableLighting = false;
         scene.lightingType = 2;
-        scene.maxBounces = 3;
+        scene.maxBounces = 1;
         cumulativeLighting = false; 
         randomizeSampleDir = false;
         disableScanSpeed = true;
         scanSpeed = dim;
         giveControl = true;
-        perPixelSamples = 3;
+        perPixelSamples = 1;
     }
 
 
@@ -441,8 +440,13 @@ int main()
             shader.setUniform("camFwd", cam.fwd.ToShader());
             shader.setUniform("camUp", cam.up.ToShader());
             shader.setUniform("camRight", cam.right.ToShader());
-        }
 
+            shader.setUniform("disableLighting", scene.disableLighting);
+            shader.setUniform("samples", (int)perPixelSamples);
+
+            shader.setUniform("rndSeedX", (float)utils::RandNum());
+            shader.setUniform("rndSeedY", (float)utils::RandNum());
+        }
 
 
         tex.loadFromImage(img);
@@ -451,11 +455,11 @@ int main()
 
         if (!cumulativeLighting)
         {
-            shader.setUniform("frameCount", 0);
+            cumulativeFrameCount = 0;
             renderTex.clear();
         }
-        else
-            shader.setUniform("frameCount", (int)cumulativeFrameCount);
+
+        shader.setUniform("frameCount", (int)cumulativeFrameCount);
 
         shader.setUniform("texture", sf::Shader::CurrentTexture);
         shader.setUniform("lastFrame", renderTex.getTexture());
@@ -468,13 +472,7 @@ int main()
         window.draw(drawSprite);
         window.display();
 
-
-        if (!pauseSampling)
-        {
-            currPix = drawEnd % dim;
-            if (currPix != drawEnd)
-                cumulativeFrameCount++;
-        }
+        cumulativeFrameCount++;
     }
 
     for (int i = 0; i < shapeCount; i++)
