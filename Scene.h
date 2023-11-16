@@ -104,14 +104,15 @@ struct Cam
 {
     float fov;
     bool perspective;
+    float speed;
 
     Vec3
         origin,
         fwd, right, up;
 
 
-    Cam(float fov, bool perspective, const Vec3& origin, const Vec3& fwd) :
-        fov(fov), perspective(perspective), origin(origin), fwd(fwd)
+    Cam(float fov, bool perspective, float speed, const Vec3& origin, const Vec3& fwd) :
+        fov(fov), perspective(perspective), speed(speed), origin(origin), fwd(fwd)
     {
         UpdateRotation();
     }
@@ -132,9 +133,6 @@ struct Scene
 {
     Skybox* sky;
 
-    Light** lightPtrs;
-    int lightCount;
-
     Shape** shapePtrs;
     int shapeCount;
 
@@ -146,7 +144,6 @@ struct Scene
 
     Scene(Skybox* sky, bool disableLighting, int lightingType, int maxBounces, int raySplits) :
         sky(sky),
-        lightPtrs(nullptr), lightCount(0),
         shapePtrs(nullptr), shapeCount(0),
         disableLighting(disableLighting), lightingType(lightingType),
         maxBounces(maxBounces), raySplits(raySplits)
@@ -193,47 +190,8 @@ struct Scene
             if (disableLighting)
             {
                 surface.cumulativeLight = Color(1, 1, 1);
-                goto endHit;
             }
-
-            if (lightingType != 2)
-            {
-                for (int j = 0; j < lightCount; j++)
-                {
-                    Light* currLight = lightPtrs[j];
-                    Vec3 dirToLight = currLight->GetRelativePos(bestHit.origin);
-                    dirToLight.Normalize();
-
-                    if (bestHit.normal.Dot(dirToLight) <= 0)
-                        continue;
-
-                    double distSqr = currLight->GetDistSqr(bestHit.origin);
-
-                    Ray lightRay(bestHit.origin, dirToLight);
-                    Hit lightHit = {};
-
-                    bool isBlocked = false;
-                    for (int k = 0; k < shapeCount; k++)
-                    {
-                        Shape* currShape = shapePtrs[k];
-
-                        if (currShape->RayIntersect(lightRay, &lightHit))
-                            if ((lightHit.len * lightHit.len) < distSqr)
-                                isBlocked = true;
-
-                        if (isBlocked)
-                            break;
-                    }
-
-                    if (isBlocked)
-                        continue;
-
-                    surface.cumulativeLight += currLight->col *
-                        currLight->GetIntensity(lightRay, bestHit.normal);
-                }
-            }
-
-            if (lightingType != 0 && bounce <= maxBounces)
+            else if (lightingType != 0 && bounce <= maxBounces)
             {
                 for (int i = 0; i <= raySplits; i++)
                 {
@@ -312,7 +270,6 @@ struct Scene
             }
         }
 
-    endHit:
         hit.len = bestHit.len;
         hit.normal = bestHit.normal;
         hit.origin = bestHit.origin;

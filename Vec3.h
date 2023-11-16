@@ -5,6 +5,10 @@
 #include <cmath>
 #include <random>
 
+#include "SFML/Graphics/Shader.hpp"
+
+#include <SFML/Graphics.hpp>
+
 
 struct Vec3
 {
@@ -194,6 +198,15 @@ struct Vec3
         Vec3 refraction = ((*this) * n) + (normal * sign * (c - sign * n * dot));
         refraction.Normalize();
         return refraction;
+    }
+
+    sf::Glsl::Vec3 ToShader()
+    {
+        return sf::Glsl::Vec3(
+            (float)x, 
+            (float)y, 
+            (float)z
+        );
     }
 };
 

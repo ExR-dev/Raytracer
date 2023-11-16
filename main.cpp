@@ -24,32 +24,12 @@ int main()
 
     // Build Scene
     Cam cam(
-        75.0f, true,
-        Vec3(2.5, 2.5, -1.0),
+        75.0f, true, 3.5f,
+        Vec3(0.0, 5.0, -5.0),
         { 0.0, 0.0, 1.0 }
     );
 
-    /*Skybox sky(
-        Color(0.25, 0.7, 1.0), 0.05,
-        Color(0.75, 0.9, 1.0), 0.1,
-        Color(1.0, 0.8, 0.4), 15.0,
-        Vec3(1.0, 1.0, 1.0), 0.025, 0.15
-    );*/
-    Scene scene(nullptr/*&sky*/, false, 2, 1, 0);
-
-
-    Light* lightPtrs[] = {
-        0
-        /*new GlobalLight(
-            Vec3(0, -1, 0), 1.0, sky.peakCol
-        ),*/
-    };
-    int lightCount = sizeof(lightPtrs) / sizeof(Light*);
-    if (lightPtrs[0] == nullptr)
-        lightCount = 0;
-
-    scene.lightPtrs = lightPtrs;
-    scene.lightCount = lightCount;
+    Scene scene(nullptr, false, 2, 1, 0);
 
 
     Vec3 sunPos(0.8, 0.7, -0.3);
@@ -101,8 +81,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 480,
-        h = 270,
+        w = 1280,
+        h = 720,
         dim = w * h;
 
     bool cumulativeLighting = true;
@@ -114,8 +94,8 @@ int main()
 
     sf::RenderWindow window(
         sf::VideoMode(w, h),
-        "SFML Window", 
-        sf::Style::Fullscreen
+        "SFML Window" 
+        //, sf::Style::Fullscreen
     );
 
     sf::RenderTexture renderTex;
@@ -142,7 +122,6 @@ int main()
     sf::Shader shader;
 
     img.create(w, h, sf::Color::Black);
-    //sprite.setScale((float)scaleW, (float)scaleH);
     drawSprite.setScale((float)scaleW, (float)scaleH);
     shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment);
 
@@ -163,15 +142,15 @@ int main()
     {
         //cam.perspective = false;
         //cam.fov = 1.0f;
-        scene.disableLighting = false;
+        scene.disableLighting = true;
         scene.lightingType = 2;
-        scene.maxBounces = 5;
-        cumulativeLighting = true; 
-        randomizeSampleDir = true;
+        scene.maxBounces = 3;
+        cumulativeLighting = false; 
+        randomizeSampleDir = false;
         disableScanSpeed = true;
         scanSpeed = dim;
-        giveControl = false;
-        perPixelSamples = 1;
+        giveControl = true;
+        perPixelSamples = 3;
     }
 
 
@@ -181,7 +160,7 @@ int main()
         tT = clock.getElapsedTime().asSeconds();
         dT = tT - lT;
 
-        if (!disableScanSpeed)
+        /*if (!disableScanSpeed)
         {
             if (dT > 0.3)
                 scanSpeed -= w * 32;
@@ -207,7 +186,7 @@ int main()
 
             scanSpeed = std::max(1u, std::min(scanSpeed, dim));
             scanSpeed = w / 2;
-        }
+        }*/
 
 
         sf::Event event;
@@ -317,20 +296,23 @@ int main()
 
         if (giveControl)
         {
+            double speedMult = (double)cam.speed * dT * (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) ? 3.0 : 1.0);
+            speedMult /= (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) ? 7.0 : 1.0);
+
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-                cam.origin += cam.fwd * 4.0 * dT;
+                cam.origin += cam.fwd * speedMult;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-                cam.origin -= cam.fwd * 4.0 * dT;
+                cam.origin -= cam.fwd * speedMult;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-                cam.origin += cam.right * 4.0 * dT;
+                cam.origin += cam.right * speedMult;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-                cam.origin -= cam.right * 4.0 * dT;
+                cam.origin -= cam.right * speedMult;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
-                cam.origin += cam.up * 4.0 * dT;
+                cam.origin += cam.up * speedMult;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::X))
-                cam.origin -= cam.up * 4.0 * dT;
+                cam.origin -= cam.up * speedMult;
 
             deltas = fixed - sf::Mouse::getPosition();
             if (deltas != sf::Vector2i(0, 0))
@@ -385,7 +367,8 @@ int main()
                 riQueueShared.push_back({shape->mat.refractIndex, shape});
         }
 
-        #pragma omp parallel for num_threads(4)
+        goto skipHehe;
+        #pragma omp parallel for num_threads(6)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -434,20 +417,8 @@ int main()
             }
             hitCol /= perPixelSamples;
 
-            Color toRender = Color();
-            if (cumulativeLighting)
-            {
-                double avgWeight = 1.0 / (double)(cumulativeFrameCount + 1);
-                frame[i] = (frame[i] * (1.0 - avgWeight)) + (hitCol * avgWeight);
-                toRender = frame[i];
-            }
-            else
-            {
-                frame[i] = hitCol;
-                toRender = frame[i];
-            }
-
-            //toRender = toRender.ApplyGamma(1.5);
+            frame[i] = hitCol;
+            Color toRender = frame[i];
             toRender.Clamp();
 
             img.setPixel(x, y, {
@@ -456,6 +427,47 @@ int main()
                 (uint8_t)(toRender.b * 255.0)
             });
         }
+    skipHehe:
+
+        {
+            double
+                viewHeight = tan(((double)cam.fov / 2.0) * utils::PI / 180.0) * 2.0,
+                viewWidth = viewHeight / ((double)h / (double)w);
+
+            shader.setUniform("viewHeight", (float)viewHeight);
+            shader.setUniform("viewWidth", (float)viewWidth);
+
+            shader.setUniform("camPos", cam.origin.ToShader());
+            shader.setUniform("camFwd", cam.fwd.ToShader());
+            shader.setUniform("camUp", cam.up.ToShader());
+            shader.setUniform("camRight", cam.right.ToShader());
+        }
+
+
+
+        tex.loadFromImage(img);
+        sprite.setTexture(tex);
+
+
+        if (!cumulativeLighting)
+        {
+            shader.setUniform("frameCount", 0);
+            renderTex.clear();
+        }
+        else
+            shader.setUniform("frameCount", (int)cumulativeFrameCount);
+
+        shader.setUniform("texture", sf::Shader::CurrentTexture);
+        shader.setUniform("lastFrame", renderTex.getTexture());
+
+        renderTex.draw(sprite, &shader);
+        renderTex.display();
+        drawSprite.setTexture(renderTex.getTexture());
+
+        window.clear();
+        window.draw(drawSprite);
+        window.display();
+
 
         if (!pauseSampling)
         {
@@ -463,24 +475,10 @@ int main()
             if (currPix != drawEnd)
                 cumulativeFrameCount++;
         }
-
-        tex.loadFromImage(img);
-        sprite.setTexture(tex);
-
-        //renderTex.clear();
-        shader.setUniform("texture", sf::Shader::CurrentTexture);
-        renderTex.draw(sprite, &shader);
-        drawSprite.setTexture(renderTex.getTexture());
-
-        window.clear();
-        window.draw(drawSprite);
-        window.display();
     }
 
     for (int i = 0; i < shapeCount; i++)
         delete shapePtrs[i];
-    for (int i = 0; i < lightCount; i++)
-        delete lightPtrs[i];
     delete[] frame;
     return 0;
 }
