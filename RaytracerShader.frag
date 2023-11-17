@@ -5,8 +5,8 @@
 /*=============================================================================*/
 
 const float PI = 3.1415926535898;
-const float MINVAL = 0.00000001;
-const float MAXVAL = 100000000.0;
+const float MINVAL = 0.000001;
+const float MAXVAL = 10000000.0;
 
 
 uniform float rndSeedX;
@@ -26,14 +26,16 @@ float RandNum(in vec2 p)
     )));  
 }
 
-vec3 RandDir()
+vec3 RandDir(in vec2 seedOffset)
 {
+    vec2 seed = seedOffset + vec2(gl_TexCoord[0]) + vec2(mod(rndSeedX, 10.0), mod(rndSeedY, 10.0));
     while (true)
     {
-        vec2 seed = vec2(gl_TexCoord[0]) + vec2(rndSeedX, rndSeedY);
+        seed.x = mod(seed.x + 0.0052696115, 10.0);
+        seed.y = mod(seed.y + 0.0033369063, 10.0);
 
         vec3 v;
-        do     v = (vec3(RandNum(seed), RandNum(seed), RandNum(seed)) * 2.0) - 1.0;
+        do     v = (vec3(RandNum(seed), RandNum(seed + 0.1235), RandNum(seed + 0.5421)) * 2.0) - 1.0;
         while (v.x*v.x + v.y*v.y + v.z*v.z > 1.0);
 
         float m = length(v);
@@ -253,7 +255,7 @@ const vec4 sphereMats[SPHERECOUNT * 3] = vec4[SPHERECOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
     vec4(1.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
     vec4(0.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(1.0, 1.0, 0.5, 1.0), vec4(1.0, 1.0, 0.6, 10.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -360,7 +362,7 @@ const vec3 planeShapes[PLANECOUNT * 2] = vec3[PLANECOUNT * 2](
 );
 const vec4 planeMats[PLANECOUNT * 3] = vec4[PLANECOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(0.0, 1.0, 0.0, 1.0), vec4(0.3, 0.5, 1.0, 0.05), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(0.5, 1.0, 0.3, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -513,94 +515,54 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, out vec3 p, out vec3 n, 
 }
 
 
-void RaytraceTwo(in vec3 rO, in vec3 rD, in int bounce, out vec4 surfaceColor, out vec4 surfaceEmission, out vec4 cumulativeLight)
+void Raytrace(in vec3 rO, in vec3 rD, out vec4 surfaceColor, out vec4 surfaceEmission, out vec4 cumulativeLight)
 {
-    float l = MAXVAL;
-    vec3 p, n;
-
-    if (bounce > 0)
-        rO += rD * MINVAL;
-
     surfaceColor = vec4(0);
     surfaceEmission = vec4(0);
     cumulativeLight = vec4(0);
 
-    vec4 color = vec4(0);
-    vec4 emission = vec4(0);
-    vec4 surface = vec4(0);
-
-    if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
+    for (int i = 0; i <= MAXBOUNCES; i++)
     {
-        surfaceColor += color;
-        surfaceEmission += emission;
+        if (i > 0)
+            rO += rD * MINVAL;
 
-        /*if (disableLighting)
-        {
-            cumulativeLight = vec4(1);
-        }
-        else if (bounce <= MAXBOUNCES)
-        {
-            vec4 totCol = vec4(0);
+        float l = MAXVAL;
+        vec3 p, n;
 
-            vec3 randDir = n + RandDir();
+        vec4 color = vec4(0);
+        vec4 emission = vec4(0);
+        vec4 surface = vec4(0);
+
+        if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
+        {
+			float k = max(color.r, max(color.g, color.b));
+			if (RandNum(vec2(p.y, p.z)) >= k)
+				break;
+
+			color *= 1.0f / k; 
+
+            surfaceColor += color;
+            surfaceEmission += emission;
+
+            if (disableLighting)
+            {
+                cumulativeLight = vec4(1);
+                break;
+            }
+			cumulativeLight += emission * color;
+
+            vec3 randDir = n + RandDir(p.xy);
             vec3 reflectDir = reflect(rD, n);
             vec3 bounceDir = Lerp(randDir, reflectDir, surface.x); // surface.x is reflectivity
-
-            vec4 bounceSurfaceColor = vec4(0);
-            vec4 bounceSurfaceEmission = vec4(0);
-            vec4 bounceCumulativeLight = vec4(0);
-
-            //Raytrace(p, bounceDir, bounce + 1, bounceSurfaceColor, bounceSurfaceEmission, bounceCumulativeLight);
-            vec4 bounceCol = (bounceSurfaceColor * bounceCumulativeLight) + bounceSurfaceEmission;
-            totCol += bounceCol;
-
-            cumulativeLight += totCol;
-        }*/
-    }
-}
-
-void Raytrace(in vec3 rO, in vec3 rD, in int bounce, out vec4 surfaceColor, out vec4 surfaceEmission, out vec4 cumulativeLight)
-{
-    float l = MAXVAL;
-    vec3 p, n;
-
-    if (bounce > 0)
-        rO += rD * MINVAL;
-
-    surfaceColor = vec4(0);
-    surfaceEmission = vec4(0);
-    cumulativeLight = vec4(0);
-
-    vec4 color = vec4(0);
-    vec4 emission = vec4(0);
-    vec4 surface = vec4(0);
-
-    if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
-    {
-        surfaceColor += color;
-        surfaceEmission += emission;
-
-        if (disableLighting)
-        {
-            cumulativeLight = vec4(1);
+	
+            rO = p;
+            rD = bounceDir;
         }
-        else if (bounce <= MAXBOUNCES)
+        else
         {
-            vec4 totCol = vec4(0);
-
-            vec3 randDir = n + RandDir();
-            vec3 reflectDir = reflect(rD, n);
-            vec3 bounceDir = Lerp(randDir, reflectDir, surface.x); // surface.x is reflectivity
-
-            vec4 bounceSurfaceColor = vec4(0);
-            vec4 bounceSurfaceEmission = vec4(0);
-            vec4 bounceCumulativeLight = vec4(0);
-
-            RaytraceTwo(p, bounceDir, bounce + 1, bounceSurfaceColor, bounceSurfaceEmission, bounceCumulativeLight);
-            vec4 bounceCol = (bounceSurfaceColor * bounceCumulativeLight) + bounceSurfaceEmission;
-            totCol += bounceCol;
-
-            cumulativeLight += totCol;
+            if (i == 0)
+                surfaceEmission += vec4(rD, 1);
+            break;
         }
     }
 }
@@ -619,7 +581,7 @@ void Raytrace(in vec3 rO, in vec3 rD, in int bounce, out vec4 surfaceColor, out 
 
 uniform sampler2D lastFrame;
 uniform int frameCount;
-uniform int samples = 1;
+uniform int samples;
 
 
 void main(void)
@@ -639,10 +601,11 @@ void main(void)
     vec4 outCol = vec4(0);
     for (int i = 0; i < samples; i++)
     {
-        Raytrace(camPos, pixDir, 0, surfaceColor, surfaceEmission, cumulativeLight);
+        Raytrace(camPos, pixDir, surfaceColor, surfaceEmission, cumulativeLight);
         outCol += (surfaceColor * cumulativeLight) + surfaceEmission;
     }
     outCol /= samples;
+    outCol /= max(outCol.x, max(outCol.y, outCol.z));
 
     float avgWeight = 1.0 / (float(frameCount) + 1.0);
     outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);

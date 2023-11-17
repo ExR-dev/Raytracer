@@ -149,7 +149,7 @@ int main()
         disableScanSpeed = true;
         scanSpeed = dim;
         giveControl = true;
-        perPixelSamples = 1;
+        perPixelSamples = 12;
     }
 
 
