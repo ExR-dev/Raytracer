@@ -1,48 +1,100 @@
 #version 120
+#extension GL_EXT_gpu_shader4 : enable
+#extension GL_ARB_gpu_shader_fp64 : enable
 
 /*=============================================================================*/
 /*                                    UTILS                                    */
 /*=============================================================================*/
 
 const float PI = 3.1415926535898;
-const float MINVAL = 0.000001;
-const float MAXVAL = 10000000.0;
+const float MINVAL = 0.00001;
+const float MAXVAL = 1000000.0;
 
 
-uniform float rndSeedX;
-uniform float rndSeedY;
+uniform int imgW;
+uniform int imgH;
 
-float RandNum(in vec2 p)
+uniform int frameID;
+uniform float time;
+uniform float dTime;
+
+uniform int rndSeed;
+uniform sampler2D rngHash;
+
+
+int NextRandom(inout int state)
 {
-    // We need irrationals for pseudo randomness.
-    // Most (all?) known transcendental numbers will (generally) work.
-    const vec2 r = vec2(
-      23.1406926327792690,  // e^pi (Gelfond's constant)
-       2.6651441426902251); // 2^sqrt(2) (Gelfond–Schneider constant)
-       
-    return fract(cos(mod(
-        123456789.0, 
-        1e-7 + 256.0 * dot(p, r)
-    )));  
+    int result;
+    for (int i = 0; i < 4; i++)
+    {
+	    state = state * 747796405 + 2891336453;
+
+        int c = state % 3;
+        int x = (state / c) % 1024;
+        int y = ((state / c) / 1024) % 1024;
+
+        float val = texture2D(rngHash, vec2(float(x) / 1024.0, float(y) / 1024.0))[c];
+        result += int(val * 256) * (1 << (8 * i));
+    }
+    return result;
+
+    /*
+	state = state * 747796405 + 2891336453;
+    int result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
+	result = (result >> 22) ^ result;
+	return result;
+    */
 }
 
-vec3 RandDir(in vec2 seedOffset)
+float RandomValue(inout int state)
 {
-    vec2 seed = seedOffset + vec2(gl_TexCoord[0]) + vec2(mod(rndSeedX, 10.0), mod(rndSeedY, 10.0));
+	return 0.5 + float(NextRandom(state)) / (4294967295.0/2); // 2^32 - 1
+}
+
+// Random value in normal distribution (with mean=0 and sd=1)
+float RandomValueNormalDistribution(inout int state)
+{
+	float theta = 2.0 * PI * RandomValue(state);
+	float rho = sqrt(-2.0 * log(RandomValue(state)));
+	return rho * cos(theta);
+}
+
+vec3 RandomDirection(inout int state)
+{
+	float x = RandomValueNormalDistribution(state);
+	float y = RandomValueNormalDistribution(state);
+	float z = RandomValueNormalDistribution(state);
+	return normalize(vec3(x, y, z));
+}
+
+vec3 RandDir(inout int state)
+{
+    vec3 v;
+    float m = MAXVAL;
+
     while (true)
     {
-        seed.x = mod(seed.x + 0.0052696115, 10.0);
-        seed.y = mod(seed.y + 0.0033369063, 10.0);
+        do     
+        {
+            //v = (vec3(RandomValue(state), RandomValue(state), RandomValue(state)) * 2.0) - 1.0;
+            v = (vec3(RandomValue(state) - 0.5, RandomValue(state) - 0.5, RandomValue(state) - 0.5));
+            m = v.x*v.x + v.y*v.y + v.z*v.z;
+        }
+        while (m > 1.0);
 
-        vec3 v;
-        do     v = (vec3(RandNum(seed), RandNum(seed + 0.1235), RandNum(seed + 0.5421)) * 2.0) - 1.0;
-        while (v.x*v.x + v.y*v.y + v.z*v.z > 1.0);
-
-        float m = length(v);
-        if (m > MINVAL)
-            return v / m;
+        //m = sqrt(m);
+        if (m > MINVAL*2.0)
+            return v / sqrt(m);
     }
 }
+
+vec2 RandomPointInCircle(inout int state)
+{
+	float angle = RandomValue(state) * 2.0 * PI;
+	vec2 pointOnCircle = vec2(cos(angle), sin(angle));
+	return pointOnCircle * sqrt(RandomValue(state));
+}
+
 
 float Lerp(float p0, float p1, float t)
 {
@@ -94,15 +146,17 @@ bool CheckBounds(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
 
 
 // AABB
-#define AABBCOUNT 2
+#define AABBCOUNT 1
 const vec3 aabbShapes[AABBCOUNT * 2] = vec3[AABBCOUNT * 2](
-    vec3(0.0, 0.0, 0.0), vec3(8.0, 2.0, 1.0),
-    vec3(8.0, 0.0, 3.0), vec3(8.1, 8.0, 3.1)
+    /*vec3(0.0, 0.0, 0.0), vec3(8.0, 2.0, 1.0),
+    vec3(-10.0, 5.0, 5.0), vec3(-5.0, 10.0, 10.0),*/
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0)
 );
 const vec4 aabbMats[AABBCOUNT * 3] = vec4[AABBCOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    /*vec4(0.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),*/
+    vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -156,18 +210,21 @@ bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p,
 
 
 // OBB
-#define OBBCOUNT 2
+#define OBBCOUNT 1
 const vec3 obbShapes[OBBCOUNT * 5] = vec3[OBBCOUNT * 5](
-    vec3(2.5, 1.25, -1.0), vec3(1.0, 0.5, 1.666),
+    /*vec3(2.5, 1.25, -1.0), vec3(1.0, 0.5, 1.666),
     vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0),
 
-    vec3(2.5, 1.25, 5.0), vec3(2.5, 2.0, 0.1),
-    vec3(0.71, 0.71, 0.0), vec3(-0.71, 0.71, 0.0), vec3(0.0, 0.0, 1.0)
+    vec3(2.5, 1.25, 5.0), vec3(2.5, 2.0, 0.25),
+    vec3(0.71, 0.71, 0.0), vec3(-0.71, 0.71, 0.0), vec3(0.0, 0.0, 1.0)*/
+
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)
 );
 const vec4 obbMats[OBBCOUNT * 3] = vec4[OBBCOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(1.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(1.0, 0.2, 0.2, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    /*vec4(1.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),*/
+    vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -245,17 +302,17 @@ bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
 
 // SPHERE
-#define SPHERECOUNT 3
+#define SPHERECOUNT 1
 const vec4 sphereShapes[SPHERECOUNT] = vec4[SPHERECOUNT](
-    vec4(0.0, 1.0, 2.0, 1.4),
-    vec4(1.0, 1.5, 2.5, 0.75),
-    vec4(-1000000.0, 1000000.0, 500000.0, 1000000.0)
+    /*vec4(0.0, 1.0, 2.0, 4.0),
+    vec4(1.5, 1.5, 2.5, 0.6),*/
+    vec4(-10.0, 10.0, 25.0, 7.5)
 );
 const vec4 sphereMats[SPHERECOUNT * 3] = vec4[SPHERECOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(1.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.0, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    /*vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0),
+    vec4(0.5, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),*/
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 10.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -300,13 +357,49 @@ bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 
 
 
 // TRI
-#define TRICOUNT 1
+#define TRICOUNT 12
 const vec3 triShapes[TRICOUNT * 3] = vec3[TRICOUNT * 3](
-    vec3(-3.0, 0.0, -5.0), vec3(-4.0, 2.5, -4.5), vec3(-3.0, 0.0, -2.0)
+    vec3(-3.0, 0.0, 0.0), vec3(-3.0, 10.0, 0.0), vec3(-3.0, 0.0, 7.0),
+    vec3(-3.0, 0.0, 7.0), vec3(-3.0, 10.0, 0.0), vec3(-3.0, 10.0, 7.0),
+
+    vec3(3.0, 0.0, 7.0), vec3(3.0, 10.0, 7.0), vec3(3.0, 0.0, 0.0),
+    vec3(3.0, 0.0, 0.0), vec3(3.0, 10.0, 7.0), vec3(3.0, 10.0, 0.0),
+
+
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+
+
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0)
 );
 const vec4 triMats[TRICOUNT * 3] = vec4[TRICOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(0.1, 0.1, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(0.85, 0.2, 0.1, 1.0), vec4(0.6, 0.3, 0.1, 0.1), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.85, 0.2, 0.1, 1.0), vec4(0.6, 0.3, 0.1, 0.1), vec4(0.0, 0.0, 0.0, 0.0),
+
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+
+
+    vec4(0.9, 0.9, 0.9, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.9, 0.9, 0.9, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+
+    vec4(0.4, 0.4, 0.4, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.4, 0.4, 0.4, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+
+
+    vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -316,9 +409,9 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
     vec3 edge2 = triShapes[i+2] - triShapes[i];
 
     // Backface-culling
-    /*vec3 iN = cross(edge1, edge2);
+    vec3 iN = cross(edge1, edge2);
     if (dot(iN, rD) >= 0.0)
-        return false;*/
+        return false;
 
     vec3 h = cross(rD, edge2);
     float a = dot(edge1, h);
@@ -346,8 +439,8 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
         l = t;
         p = rO + rD * t;
         n = normalize(cross(edge1, edge2));
-        if (dot(n, rD) > 0.0)
-            n *= -1.0;
+        /*if (dot(n, rD) > 0.0)
+            n *= -1.0;*/
         return true;
     }
     return false;
@@ -356,13 +449,13 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
 
 // PLANE
-#define PLANECOUNT 1
-const vec3 planeShapes[PLANECOUNT * 2] = vec3[PLANECOUNT * 2](
+#define PLANECOUNT 0
+const vec3 planeShapes[2 + PLANECOUNT * 2] = vec3[2 + PLANECOUNT * 2](
     vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0)
 );
-const vec4 planeMats[PLANECOUNT * 3] = vec4[PLANECOUNT * 3](
+const vec4 planeMats[3 + PLANECOUNT * 3] = vec4[3 + PLANECOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(0.5, 1.0, 0.3, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(0.7, 1.0, 0.5, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -385,12 +478,9 @@ bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p
 }
 // PLANE
 
-
 /*=============================================================================*/
 /*                                   SHAPES                                    */
 /*=============================================================================*/
-
-
 
 
 
@@ -399,7 +489,7 @@ bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p
 /*                                  RENDERING                                  */
 /*=============================================================================*/
 
-const int MAXBOUNCES = 1;
+uniform int maxBounces;
 
 uniform vec3 camPos;
 uniform vec3 camFwd;
@@ -515,16 +605,17 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, out vec3 p, out vec3 n, 
 }
 
 
-void Raytrace(in vec3 rO, in vec3 rD, out vec4 surfaceColor, out vec4 surfaceEmission, out vec4 cumulativeLight)
+vec3 Raytrace(in vec3 rO, in vec3 rD, inout int seed)
 {
-    surfaceColor = vec4(0);
-    surfaceEmission = vec4(0);
-    cumulativeLight = vec4(0);
+    //vec4 surfaceColor = vec4(1);
+    //vec4 surfaceEmission = vec4(0);
 
-    for (int i = 0; i <= MAXBOUNCES; i++)
+	vec3 incomingLight = vec3(0);
+	vec3 rayColour = vec3(1);
+
+    for (int i = 0; i <= maxBounces; i++)
     {
-        if (i > 0)
-            rO += rD * MINVAL;
+        rO += rD * MINVAL;
 
         float l = MAXVAL;
         vec3 p, n;
@@ -535,36 +626,37 @@ void Raytrace(in vec3 rO, in vec3 rD, out vec4 surfaceColor, out vec4 surfaceEmi
 
         if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
         {
-			float k = max(color.r, max(color.g, color.b));
-			if (RandNum(vec2(p.y, p.z)) >= k)
-				break;
-
-			color *= 1.0f / k; 
-
-            surfaceColor += color;
-            surfaceEmission += emission;
+            /*if (dot(n, rD) > 0.0)
+                n *= -1.0;*/
 
             if (disableLighting)
-            {
-                cumulativeLight = vec4(1);
-                break;
-            }
-			cumulativeLight += emission * color;
+                return color.xyz + emission.xyz * emission.w;
 
-            vec3 randDir = n + RandDir(p.xy);
-            vec3 reflectDir = reflect(rD, n);
-            vec3 bounceDir = Lerp(randDir, reflectDir, surface.x); // surface.x is reflectivity
-	
             rO = p;
-            rD = bounceDir;
+			//vec3 diffuseDir = normalize(n + RandomDirection(seed) * 0.9);
+			vec3 diffuseDir = normalize(n + RandDir(seed));
+			vec3 specularDir = reflect(rD, n);
+			rD = normalize(Lerp(diffuseDir, specularDir, surface.x));
+
+			// Update light calculations
+			vec3 emittedLight = emission.xyz * emission.w;
+			incomingLight += emittedLight * rayColour;
+			rayColour *= color.xyz;
+						
+			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
+			if (RandomValue(seed) >= k)
+				break;
+			rayColour *= 1.0 / k; 
         }
         else
         {
-            if (i == 0)
-                surfaceEmission += vec4(rD, 1);
+			//incomingLight += rD * rayColour;
+		    //incomingLight += vec3(0.1) * rayColour;
             break;
         }
     }
+
+    return incomingLight;
 }
 
 /*=============================================================================*/
@@ -583,33 +675,57 @@ uniform sampler2D lastFrame;
 uniform int frameCount;
 uniform int samples;
 
+uniform bool randomizeDir;
+uniform int iii;
+
 
 void main(void)
 {
-    vec3 botLeftLocal = vec3(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
-    vec4 lFrame = texture2D(lastFrame, vec2(gl_TexCoord[0].x, 1.0 - gl_TexCoord[0].y));
-    
     vec2 uv = vec2(gl_TexCoord[0].x, 1.0 - gl_TexCoord[0].y);
+    vec3 outCol = vec3(0);
+
+    int seed = rndSeed + int(uv.x * imgW) + int(uv.y * imgW) * imgH;
+    //int seed = frameCount + rndSeed + int(uv.x * imgW) + int(uv.y * imgW) * imgH;
+
+    if (randomizeDir)
+    {
+        uv.y += ((RandomValue(seed) - 0.5) / 1.2) / float(imgH);
+        uv.x += ((RandomValue(seed) - 0.5) / 1.2) / float(imgW);
+    }
+    vec4 lFrame = texture2D(lastFrame, uv);
+    
+    vec3 botLeftLocal = vec3(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
     vec3 dirLocal = botLeftLocal + vec3(viewWidth * uv.x, viewHeight * uv.y, 0.0);
     vec3 pixDir = camRight * dirLocal.x + camUp * dirLocal.y + camFwd * dirLocal.z;
     pixDir = normalize(pixDir);
 
-    vec4 surfaceColor;
-    vec4 surfaceEmission;
-    vec4 cumulativeLight;
-
-    vec4 outCol = vec4(0);
     for (int i = 0; i < samples; i++)
-    {
-        Raytrace(camPos, pixDir, surfaceColor, surfaceEmission, cumulativeLight);
-        outCol += (surfaceColor * cumulativeLight) + surfaceEmission;
-    }
+        outCol += Raytrace(camPos, pixDir, seed);
     outCol /= samples;
-    outCol /= max(outCol.x, max(outCol.y, outCol.z));
 
-    float avgWeight = 1.0 / (float(frameCount) + 1.0);
-    outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
-    gl_FragColor = outCol;
+    //outCol /= max(outCol.x, max(outCol.y, outCol.z));
+    /*outCol = vec3(
+        max(0.0, min(outCol.x, 1.0)), 
+        max(0.0, min(outCol.y, 1.0)), 
+        max(0.0, min(outCol.z, 1.0))
+    );*/
+
+    float avgWeight = 1.0 / (float(frameCount + 1));
+    outCol = (lFrame.xyz * (1.0 - avgWeight)) + (outCol * avgWeight);
+    gl_FragColor = vec4(outCol, 1);
+    
+    
+    /*int i=iii;
+    float e = RandomValue(i);
+
+    if (e < 0.01)
+        gl_FragColor = vec4(0,0,1, 1);
+    else if (e > 0.99)
+        gl_FragColor = vec4(1,0,0, 1);
+    else
+        gl_FragColor = vec4(e,e,e, 1);*/
+
+    //gl_FragColor = texture2D(rngHash, uv);
 }
 
 /*=============================================================================*/

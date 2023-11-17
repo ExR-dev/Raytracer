@@ -80,8 +80,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = 1280,
-        h = 720,
+        w = /*160,*/ /*320,*/ /*640,*/ /*960,*/ /*1280,*/ 1920,
+        h = /*80, */ /*180,*/ /*360,*/ /*540,*/ /*720,*/  1080,
         dim = w * h;
 
     bool cumulativeLighting = true;
@@ -93,12 +93,10 @@ int main()
 
     sf::RenderWindow window(
         sf::VideoMode(w, h),
-        "SFML Window" 
-        //, sf::Style::Fullscreen
+        "SFML Window",
+        sf::Style::Fullscreen
     );
 
-    sf::RenderTexture renderTex;
-    renderTex.create(w, h);
 
     unsigned int
         sW = window.getSize().x,
@@ -115,13 +113,22 @@ int main()
 
 
     sf::Image img;
+    img.create(w, h, sf::Color::Black);
+
+    sf::Image rngImg;
+    rngImg.create(1024, 1024, sf::Color::Black);
+
     sf::Texture tex;
+    sf::Texture rngTex;
+    //rngTex.create(1024, 1024);
+    sf::RenderTexture renderTex;
+    renderTex.create(w, h);
+
     sf::Sprite sprite;
     sf::Sprite drawSprite;
-    sf::Shader shader;
-
-    img.create(w, h, sf::Color::Black);
     drawSprite.setScale((float)scaleW, (float)scaleH);
+
+    sf::Shader shader;
     shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment);
 
 
@@ -139,53 +146,53 @@ int main()
 
 
     {
-        //cam.perspective = false;
-        //cam.fov = 1.0f;
+        cam.perspective = true;
+        cam.fov = 75.0f;
+
         scene.disableLighting = false;
-        scene.lightingType = 2;
-        scene.maxBounces = 1;
+        scene.maxBounces = 8;
+
+        perPixelSamples = 4;
         cumulativeLighting = false; 
         randomizeSampleDir = false;
+
         disableScanSpeed = true;
         scanSpeed = dim;
         giveControl = true;
-        perPixelSamples = 12;
     }
 
 
+    {
+        shader.setUniform("imgW", (int)w);
+        shader.setUniform("imgH", (int)h);
+
+        shader.setUniform("time", 1.0f);
+        shader.setUniform("dTime", 1.0f);
+
+        shader.setUniform("maxBounces", scene.maxBounces);
+
+        for (int x = 0; x < 1024; x++)
+        {
+            for (int y = 0; y < 1024; y++)
+            {
+                rngImg.setPixel(x, y, {
+                    (uint8_t)utils::VeryRand(0, 255),
+                    (uint8_t)utils::VeryRand(0, 255),
+                    (uint8_t)utils::VeryRand(0, 255)
+                });
+            }
+        }
+        rngTex.loadFromImage(rngImg);
+        shader.setUniform("rngHash", rngTex);
+    }
+
+    int totFrames = 0;
+    int iii = 0;
     while (window.isOpen())
     {
         lT = tT;
         tT = clock.getElapsedTime().asSeconds();
         dT = tT - lT;
-
-        /*if (!disableScanSpeed)
-        {
-            if (dT > 0.3)
-                scanSpeed -= w * 32;
-            else if (dT > 0.2)
-                scanSpeed -= w * 24;
-            else if (dT > 0.15)
-                scanSpeed -= w * 12;
-            else if (dT > 0.125)
-                scanSpeed -= w * 4;
-            else if (dT > 0.11)
-                scanSpeed -= w * 2;
-            else if (dT > 0.09)
-                scanSpeed -= w;
-
-            else if (dT < 0.07)
-                scanSpeed += w / 2;
-            else if (dT < 0.06)
-                scanSpeed += w;
-            else if (dT < 0.04)
-                scanSpeed += w * 2;
-            else if (dT < 0.02)
-                scanSpeed += w * 4;
-
-            scanSpeed = std::max(1u, std::min(scanSpeed, dim));
-            scanSpeed = w / 2;
-        }*/
 
 
         sf::Event event;
@@ -218,6 +225,10 @@ int main()
                     randomizeSampleDir = !randomizeSampleDir;
                 else if (event.key.code == sf::Keyboard::P)
                     pauseSampling = !pauseSampling;
+                else if (event.key.code == sf::Keyboard::Q)
+                    iii++;
+                else if (event.key.code == sf::Keyboard::Z)
+                    iii--;
                 else if (event.key.code == sf::Keyboard::O)
                     cam.perspective = !cam.perspective;
                 else if (event.key.code == sf::Keyboard::C)
@@ -367,7 +378,7 @@ int main()
         }
 
         goto skipHehe;
-        #pragma omp parallel for num_threads(6)
+        //#pragma omp parallel for num_threads(6)
         for (int i = drawStart; i < drawEnd; i++)
         {
             if (pauseSampling)
@@ -429,12 +440,21 @@ int main()
     skipHehe:
 
         {
-            double
-                viewHeight = tan(((double)cam.fov / 2.0) * utils::PI / 180.0) * 2.0,
-                viewWidth = viewHeight / ((double)h / (double)w);
+            shader.setUniform("frameID", totFrames);
+            shader.setUniform("time", (float)tT);
+            shader.setUniform("dTime", (float)dT);
 
-            shader.setUniform("viewHeight", (float)viewHeight);
-            shader.setUniform("viewWidth", (float)viewWidth);
+            shader.setUniform("rndSeed", (int)utils::VeryRand(0, 4294967295));
+
+            //shader.setUniform("rndSeedX", (float)utils::RandNum());
+            //shader.setUniform("rndSeedY", (float)utils::RandNum());
+
+            float
+                viewHeight = tanf((cam.fov / 2.0f) * (float)utils::PI / 180.0f) * 2.0f,
+                viewWidth = viewHeight / ((float)h / (float)w);
+
+            shader.setUniform("viewHeight", viewHeight);
+            shader.setUniform("viewWidth", viewWidth);
 
             shader.setUniform("camPos", cam.origin.ToShader());
             shader.setUniform("camFwd", cam.fwd.ToShader());
@@ -443,36 +463,32 @@ int main()
 
             shader.setUniform("disableLighting", scene.disableLighting);
             shader.setUniform("samples", (int)perPixelSamples);
+            shader.setUniform("randomizeDir", randomizeSampleDir);
 
-            shader.setUniform("rndSeedX", (float)utils::RandNum());
-            shader.setUniform("rndSeedY", (float)utils::RandNum());
+            shader.setUniform("frameCount", cumulativeLighting ? (int)cumulativeFrameCount : 0);
+            shader.setUniform("iii", ++iii);
         }
-
 
         tex.loadFromImage(img);
         sprite.setTexture(tex);
 
-
-        if (!cumulativeLighting)
-        {
-            cumulativeFrameCount = 0;
-            renderTex.clear();
-        }
-
-        shader.setUniform("frameCount", (int)cumulativeFrameCount);
-
-        shader.setUniform("texture", sf::Shader::CurrentTexture);
+        //shader.setUniform("texture", sf::Shader::CurrentTexture);
         shader.setUniform("lastFrame", renderTex.getTexture());
 
         renderTex.draw(sprite, &shader);
         renderTex.display();
         drawSprite.setTexture(renderTex.getTexture());
 
+        /*if (!cumulativeLighting)
+            renderTex.clear();*/
+
         window.clear();
         window.draw(drawSprite);
         window.display();
 
         cumulativeFrameCount++;
+        totFrames++;
+        //sf::sleep(sf::seconds(0.1));
     }
 
     for (int i = 0; i < shapeCount; i++)
