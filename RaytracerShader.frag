@@ -2,64 +2,54 @@
 #extension GL_EXT_gpu_shader4 : enable
 #extension GL_ARB_gpu_shader_fp64 : enable
 
-/*=============================================================================*/
-/*                                    UTILS                                    */
-/*=============================================================================*/
 
-const float PI = 3.1415926535898;
-const float MINVAL = 0.00001;
-const float MAXVAL = 1000000.0;
 
+
+
+
+
+
+
+
+
+
+
+/*=======================================================================================================*/
+/*                                                 UTILS                                                 */
+/*=======================================================================================================*/
+
+const float PI = 3.1415926536;
+const float MINVAL = 0.000025;
+const float MAXVAL = 10000000.0;
 
 uniform int imgW;
 uniform int imgH;
 
-uniform int frameID;
-uniform float time;
-uniform float dTime;
 
 uniform int rndSeed;
-uniform sampler2D rngHash;
 
-
-int NextRandom(inout int state)
+uint NextRandom(inout uint state)
 {
-    int result;
-    for (int i = 0; i < 4; i++)
-    {
-	    state = state * 747796405 + 2891336453;
-
-        int c = state % 3;
-        int x = (state / c) % 1024;
-        int y = ((state / c) / 1024) % 1024;
-
-        float val = texture2D(rngHash, vec2(float(x) / 1024.0, float(y) / 1024.0))[c];
-        result += int(val * 256) * (1 << (8 * i));
-    }
-    return result;
-
-    /*
-	state = state * 747796405 + 2891336453;
-    int result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
+    state = state * 747796405 + 2891336453;
+	uint result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
 	result = (result >> 22) ^ result;
 	return result;
-    */
 }
 
-float RandomValue(inout int state)
+float RandomValue(inout uint state)
 {
-	return 0.5 + float(NextRandom(state)) / (4294967295.0/2); // 2^32 - 1
+	return float(NextRandom(state)) / 4294967295.0;
 }
 
 // Random value in normal distribution (with mean=0 and sd=1)
-float RandomValueNormalDistribution(inout int state)
+float RandomValueNormalDistribution(inout uint state)
 {
 	float theta = 2.0 * PI * RandomValue(state);
 	float rho = sqrt(-2.0 * log(RandomValue(state)));
 	return rho * cos(theta);
 }
 
-vec3 RandomDirection(inout int state)
+vec3 RandomDirection(inout uint state)
 {
 	float x = RandomValueNormalDistribution(state);
 	float y = RandomValueNormalDistribution(state);
@@ -67,34 +57,31 @@ vec3 RandomDirection(inout int state)
 	return normalize(vec3(x, y, z));
 }
 
-vec3 RandDir(inout int state)
+vec3 RandDir(inout uint state)
 {
     vec3 v;
     float m = MAXVAL;
 
     while (true)
     {
-        do     
+        do
         {
-            //v = (vec3(RandomValue(state), RandomValue(state), RandomValue(state)) * 2.0) - 1.0;
-            v = (vec3(RandomValue(state) - 0.5, RandomValue(state) - 0.5, RandomValue(state) - 0.5));
+            v = (vec3(RandomValue(state), RandomValue(state), RandomValue(state)) - 0.5) * 2.0;
             m = v.x*v.x + v.y*v.y + v.z*v.z;
         }
         while (m > 1.0);
 
-        //m = sqrt(m);
-        if (m > MINVAL*2.0)
+        if (m*m > MINVAL*2.0)
             return v / sqrt(m);
     }
 }
 
-vec2 RandomPointInCircle(inout int state)
+vec2 RandomPointInCircle(inout uint state)
 {
 	float angle = RandomValue(state) * 2.0 * PI;
 	vec2 pointOnCircle = vec2(cos(angle), sin(angle));
 	return pointOnCircle * sqrt(RandomValue(state));
 }
-
 
 float Lerp(float p0, float p1, float t)
 {
@@ -106,9 +93,9 @@ vec3 Lerp(vec3 p0, vec3 p1, float t)
     return (1.0 - t) * p0 + t * p1;
 }
 
-/*=============================================================================*/
-/*                                    UTILS                                    */
-/*=============================================================================*/
+/*=======================================================================================================*/
+/*                                                 UTILS                                                 */
+/*=======================================================================================================*/
 
 
 
@@ -116,10 +103,17 @@ vec3 Lerp(vec3 p0, vec3 p1, float t)
 
 
 
-/*=============================================================================*/
-/*                                   SHAPES                                    */
-/*=============================================================================*/
 
+
+
+
+
+
+/*=======================================================================================================*/
+/*                                                SHAPES                                                 */
+/*=======================================================================================================*/
+
+// make sure to invert irD beforehand
 bool CheckBounds(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
 {
     float tx1 = (bMin.x - rO.x) * irD.x;
@@ -148,15 +142,11 @@ bool CheckBounds(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
 // AABB
 #define AABBCOUNT 1
 const vec3 aabbShapes[AABBCOUNT * 2] = vec3[AABBCOUNT * 2](
-    /*vec3(0.0, 0.0, 0.0), vec3(8.0, 2.0, 1.0),
-    vec3(-10.0, 5.0, 5.0), vec3(-5.0, 10.0, 10.0),*/
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0)
+    vec3(-1.0, 2.0, -1.0), vec3(1.0, 4.0, 1.0)
 );
 const vec4 aabbMats[AABBCOUNT * 3] = vec4[AABBCOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    /*vec4(0.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),*/
-    vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0)
 );
 
 bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -187,23 +177,40 @@ bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p,
         return false;
 
     l = (tmin > 0.0) ? tmin : tmax;
+
     p = rO + (rD * l);
+    int sgn = (tmin > 0.0) ? 1 : -1;
 
-    vec3 bMid = (aabbShapes[i] + aabbShapes[i+1]) / 2.0;
-    vec3 bSize = abs(aabbShapes[i+1] - bMid);
-    vec3 mToP = p - bMid;
-    vec3 eToP = abs(abs(mToP) - bSize);
-
-    if (eToP.x <= eToP.y && eToP.x <= eToP.z)
-        n = vec3(sign(mToP.x), 0, 0);
-    else if (eToP.y <= eToP.x && eToP.y <= eToP.z)
-        n = vec3(0, sign(mToP.y) * sign(rD.y), 0);
-    else if (eToP.z <= eToP.x && eToP.z <= eToP.y)
-        n = vec3(0, 0, sign(mToP.z) * sign(rD.z));
-
-    if (dot(rD, n) > 0.0)
-        n = -n;
-
+    if (l == tx1)
+    { 
+        p.x = aabbShapes[i].x; 
+        n = vec3(-sgn,0,0); 
+    }
+    else if (l == tx2)
+    { 
+        p.x = aabbShapes[i+1].x; 
+        n = vec3(sgn,0,0); 
+    }
+    else if (l == ty1)
+    { 
+        p.y = aabbShapes[i].y; 
+        n = vec3(0,-sgn,0); 
+    }
+    else if (l == ty2)
+    { 
+        p.y = aabbShapes[i+1].y; 
+        n = vec3(0,sgn,0);
+    }
+    else if (l == tz1)
+    { 
+        p.z = aabbShapes[i].z; 
+        n = vec3(0,0,-sgn); 
+    }
+    else if (l == tz2)
+    { 
+        p.z = aabbShapes[i+1].z; 
+        n = vec3(0,0,sgn); 
+    }
     return true;
 }
 // AABB
@@ -212,19 +219,14 @@ bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p,
 // OBB
 #define OBBCOUNT 1
 const vec3 obbShapes[OBBCOUNT * 5] = vec3[OBBCOUNT * 5](
-    /*vec3(2.5, 1.25, -1.0), vec3(1.0, 0.5, 1.666),
-    vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0),
-
-    vec3(2.5, 1.25, 5.0), vec3(2.5, 2.0, 0.25),
-    vec3(0.71, 0.71, 0.0), vec3(-0.71, 0.71, 0.0), vec3(0.0, 0.0, 1.0)*/
-
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
-    vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)
+    // vec3(center x3), vec3(halfLength x3), 
+    // vec3(x-axis x3), vec3(y-axis x3), vec3(z-axis x3)
+    vec3(1.0, 4.5, -2.0), vec3(0.75, 0.5, 1.0),
+    normalize(vec3(6.0, 4.0, -2.0)), normalize(vec3(-0.01965655, -0.384051845, -0.92310227)), normalize(vec3(-0.5970381, 0.73607948, -0.3189553))
 );
 const vec4 obbMats[OBBCOUNT * 3] = vec4[OBBCOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    /*vec4(1.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),*/
-    vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(0.1, 1.0, 0.5, 1.0), vec4(0.5, 1.0, 0.7, 0.1), vec4(0.2, 0.0, 0.0, 0.0)
 );
 
 bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -304,15 +306,11 @@ bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 // SPHERE
 #define SPHERECOUNT 1
 const vec4 sphereShapes[SPHERECOUNT] = vec4[SPHERECOUNT](
-    /*vec4(0.0, 1.0, 2.0, 4.0),
-    vec4(1.5, 1.5, 2.5, 0.6),*/
-    vec4(-10.0, 10.0, 25.0, 7.5)
+    vec4(2.0, 1.5, 2.5, 1.0)
 );
 const vec4 sphereMats[SPHERECOUNT * 3] = vec4[SPHERECOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    /*vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0),
-    vec4(0.5, 0.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),*/
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 10.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0)
 );
 
 bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -357,49 +355,58 @@ bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 
 
 
 // TRI
-#define TRICOUNT 12
+#define TRICOUNT 14
 const vec3 triShapes[TRICOUNT * 3] = vec3[TRICOUNT * 3](
-    vec3(-3.0, 0.0, 0.0), vec3(-3.0, 10.0, 0.0), vec3(-3.0, 0.0, 7.0),
-    vec3(-3.0, 0.0, 7.0), vec3(-3.0, 10.0, 0.0), vec3(-3.0, 10.0, 7.0),
+    vec3(-3.5, 0.0, -4.5), vec3(-3.5, 10.0, -4.5), vec3(-3.5, 0.0, 4.5),
+    vec3(-3.5, 0.0, 4.5), vec3(-3.5, 10.0, -4.5), vec3(-3.5, 10.0, 4.5),
 
-    vec3(3.0, 0.0, 7.0), vec3(3.0, 10.0, 7.0), vec3(3.0, 0.0, 0.0),
-    vec3(3.0, 0.0, 0.0), vec3(3.0, 10.0, 7.0), vec3(3.0, 10.0, 0.0),
-
-
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
-
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(3.5, 0.0, 4.5), vec3(3.5, 10.0, 4.5), vec3(3.5, 0.0, -4.5),
+    vec3(3.5, 0.0, -4.5), vec3(3.5, 10.0, 4.5), vec3(3.5, 10.0, -4.5),
 
 
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
+    vec3(-3.5, 0.0, -4.5), vec3(-3.5, 0.0, 4.5), vec3(3.5, 0.0, -4.5),
+    vec3(3.5, 0.0, -4.5), vec3(-3.5, 0.0, 4.5), vec3(3.5, 0.0, 4.5),
 
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0),
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0)
+    vec3(-3.5, 10.0, 4.5), vec3(-3.5, 10.0, -4.5), vec3(3.5, 10.0, 4.5),
+    vec3(3.5, 10.0, 4.5), vec3(-3.5, 10.0, -4.5), vec3(3.5, 10.0, -4.5),
+
+
+    vec3(3.5, 0.0, -4.5), vec3(3.5, 10.0, -4.5), vec3(-3.5, 0.0, -4.5),
+    vec3(-3.5, 0.0, -4.5), vec3(3.5, 10.0, -4.5), vec3(-3.5, 10.0, -4.5),
+
+    vec3(-3.5, 0.0, 4.5), vec3(-3.5, 10.0, 4.5), vec3(3.5, 0.0, 4.5),
+    vec3(3.5, 0.0, 4.5), vec3(-3.5, 10.0, 4.5), vec3(3.5, 10.0, 4.5),
+
+    
+    vec3(-1.5, 9.99, 2.5), vec3(-1.5, 9.99, -2.5), vec3(1.5, 9.99, 2.5),
+    vec3(1.5, 9.99, 2.5), vec3(-1.5, 9.99, -2.5), vec3(1.5, 9.99, -2.5)
 );
 const vec4 triMats[TRICOUNT * 3] = vec4[TRICOUNT * 3](
     // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(0.85, 0.2, 0.1, 1.0), vec4(0.6, 0.3, 0.1, 0.1), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.85, 0.2, 0.1, 1.0), vec4(0.6, 0.3, 0.1, 0.1), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.85, 0.2, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.85, 0.2, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.15, 0.7, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.15, 0.7, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
 
-    vec4(0.9, 0.9, 0.9, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.9, 0.9, 0.9, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
-    vec4(0.4, 0.4, 0.4, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.4, 0.4, 0.4, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.2, 0.2, 0.9, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.2, 0.2, 0.9, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
 
     vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
     vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+    vec4(0.7, 0.15, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.7, 0.15, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+
+    
+
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 2.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 2.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
 bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
@@ -439,6 +446,8 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
         l = t;
         p = rO + rD * t;
         n = normalize(cross(edge1, edge2));
+
+        // If no backface-culling
         /*if (dot(n, rD) > 0.0)
             n *= -1.0;*/
         return true;
@@ -478,16 +487,25 @@ bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p
 }
 // PLANE
 
-/*=============================================================================*/
-/*                                   SHAPES                                    */
-/*=============================================================================*/
+/*=======================================================================================================*/
+/*                                                SHAPES                                                 */
+/*=======================================================================================================*/
 
 
 
 
-/*=============================================================================*/
-/*                                  RENDERING                                  */
-/*=============================================================================*/
+
+
+
+
+
+
+
+
+
+/*=======================================================================================================*/
+/*                                               RENDERING                                               */
+/*=======================================================================================================*/
 
 uniform int maxBounces;
 
@@ -503,9 +521,10 @@ uniform bool disableLighting;
 
 
 
-bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, out vec3 p, out vec3 n, out vec4 col, out vec4 emission, out vec4 surface)
+bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3 n, out vec4 col, out vec4 emission, out vec4 surface)
 {
-    rO += rD * MINVAL;
+    //rO += rD * MINVAL;
+    rO += n * MINVAL;
 
     bool hasHit = false;
     float nl;
@@ -605,18 +624,15 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, out vec3 p, out vec3 n, 
 }
 
 
-vec3 Raytrace(in vec3 rO, in vec3 rD, inout int seed)
+vec3 Raytrace(in vec3 rO, in vec3 rD, inout uint seed)
 {
-    //vec4 surfaceColor = vec4(1);
-    //vec4 surfaceEmission = vec4(0);
-
 	vec3 incomingLight = vec3(0);
 	vec3 rayColour = vec3(1);
 
     for (int i = 0; i <= maxBounces; i++)
     {
-        rO += rD * MINVAL;
-
+        //rO += rD * MINVAL;
+        
         float l = MAXVAL;
         vec3 p, n;
 
@@ -626,14 +642,10 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, inout int seed)
 
         if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
         {
-            /*if (dot(n, rD) > 0.0)
-                n *= -1.0;*/
-
-            if (disableLighting)
+            if (disableLighting /*&& i == 1*/)
                 return color.xyz + emission.xyz * emission.w;
 
             rO = p;
-			//vec3 diffuseDir = normalize(n + RandomDirection(seed) * 0.9);
 			vec3 diffuseDir = normalize(n + RandDir(seed));
 			vec3 specularDir = reflect(rD, n);
 			rD = normalize(Lerp(diffuseDir, specularDir, surface.x));
@@ -659,17 +671,25 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, inout int seed)
     return incomingLight;
 }
 
-/*=============================================================================*/
-/*                                  RENDERING                                  */
-/*=============================================================================*/
+/*=======================================================================================================*/
+/*                                               RENDERING                                               */
+/*=======================================================================================================*/
 
 
 
 
 
-/*=============================================================================*/
-/*                                    MAIN                                     */
-/*=============================================================================*/
+
+
+
+
+
+
+
+
+/*=======================================================================================================*/
+/*                                                 MAIN                                                  */
+/*=======================================================================================================*/
 
 uniform sampler2D lastFrame;
 uniform int frameCount;
@@ -682,17 +702,17 @@ uniform int iii;
 void main(void)
 {
     vec2 uv = vec2(gl_TexCoord[0].x, 1.0 - gl_TexCoord[0].y);
+    vec3 lFrame = texture2D(lastFrame, uv).xyz;
     vec3 outCol = vec3(0);
-
-    int seed = rndSeed + int(uv.x * imgW) + int(uv.y * imgW) * imgH;
-    //int seed = frameCount + rndSeed + int(uv.x * imgW) + int(uv.y * imgW) * imgH;
+    
+    uint rndS = (rndSeed + 2147483647);
+    uint seed = rndS + uint(uv.x * imgW) + uint(uv.y * imgW * imgH);
 
     if (randomizeDir)
     {
-        uv.y += ((RandomValue(seed) - 0.5) / 1.2) / float(imgH);
-        uv.x += ((RandomValue(seed) - 0.5) / 1.2) / float(imgW);
+        uv.y += ((RandomValue(seed) - 0.5)) / float(imgH);
+        uv.x += ((RandomValue(seed) - 0.5)) / float(imgW);
     }
-    vec4 lFrame = texture2D(lastFrame, uv);
     
     vec3 botLeftLocal = vec3(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
     vec3 dirLocal = botLeftLocal + vec3(viewWidth * uv.x, viewHeight * uv.y, 0.0);
@@ -703,31 +723,24 @@ void main(void)
         outCol += Raytrace(camPos, pixDir, seed);
     outCol /= samples;
 
-    //outCol /= max(outCol.x, max(outCol.y, outCol.z));
-    /*outCol = vec3(
-        max(0.0, min(outCol.x, 1.0)), 
-        max(0.0, min(outCol.y, 1.0)), 
-        max(0.0, min(outCol.z, 1.0))
-    );*/
-
     float avgWeight = 1.0 / (float(frameCount + 1));
-    outCol = (lFrame.xyz * (1.0 - avgWeight)) + (outCol * avgWeight);
+    outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
     gl_FragColor = vec4(outCol, 1);
-    
-    
-    /*int i=iii;
-    float e = RandomValue(i);
-
-    if (e < 0.01)
-        gl_FragColor = vec4(0,0,1, 1);
-    else if (e > 0.99)
-        gl_FragColor = vec4(1,0,0, 1);
-    else
-        gl_FragColor = vec4(e,e,e, 1);*/
-
-    //gl_FragColor = texture2D(rngHash, uv);
 }
 
-/*=============================================================================*/
-/*                                    MAIN                                     */
-/*=============================================================================*/
+/*=======================================================================================================*/
+/*                                                 MAIN                                                  */
+/*=======================================================================================================*/
+
+
+
+
+
+
+
+
+
+
+
+
+

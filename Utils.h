@@ -29,20 +29,16 @@ namespace utils
 
     std::default_random_engine generator((unsigned int)time(0));
     std::mt19937 gen(generator());
-    unsigned int VeryRand(int s, int e)
+    unsigned int VeryRand(unsigned int s, unsigned int e)
     {
         std::uniform_int_distribution<std::mt19937::result_type> distr(s, e);
         return distr(gen);
-
-        /*std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<std::mt19937::result_type> distr(s, e);
-        return distr(gen);*/
     }
 
+    // range [0.0, 1.0]
     double RandNum()
     {
-        return (double)VeryRand(0, RAND_MAX) / (double)(RAND_MAX + 1);
+        return (double)VeryRand(0, UINT_MAX) / ((double)(UINT_MAX));
     }
 
 

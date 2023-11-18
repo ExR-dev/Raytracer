@@ -137,15 +137,14 @@ struct Scene
     int shapeCount;
 
     bool disableLighting;
-    int lightingType;
 
     int maxBounces;
     int raySplits;
 
-    Scene(Skybox* sky, bool disableLighting, int lightingType, int maxBounces, int raySplits) :
+    Scene(Skybox* sky, bool disableLighting, int maxBounces, int raySplits) :
         sky(sky),
         shapePtrs(nullptr), shapeCount(0),
-        disableLighting(disableLighting), lightingType(lightingType),
+        disableLighting(disableLighting),
         maxBounces(maxBounces), raySplits(raySplits)
     {}
 
@@ -191,7 +190,7 @@ struct Scene
             {
                 surface.cumulativeLight = Color(1, 1, 1);
             }
-            else if (lightingType != 0 && bounce <= maxBounces)
+            else if (bounce <= maxBounces)
             {
                 for (int i = 0; i <= raySplits; i++)
                 {
