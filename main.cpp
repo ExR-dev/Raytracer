@@ -23,7 +23,7 @@ int main()
 
     // Build Scene
     Cam cam(
-        75.0f, true, 3.5f,
+        75.0f, true, 5.0f,
         Vec3(0.0, 5.0, -7.0),
         Vec3(0.0, 0.0, 1.0)
     );
@@ -31,8 +31,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ 960, /*1280,*/ /*1920,*/
-        h = /*45,*/ /*90, */ /*180,*/ /*360,*/ 540, /*720, */ /*1080,*/
+        w = /*80,*/ /*160,*/ /*320,*/ 640, /*960,*/ /*1280,*/ /*1920,*/
+        h = /*45,*/ /*90, */ /*180,*/ 360, /*540,*/ /*720, */ /*1080,*/
         dim = w * h;
 
     sf::RenderWindow window(
@@ -81,8 +81,8 @@ int main()
         cumulativeLighting = false;
         randomizeSampleDir = true;
         disableLighting = false;
-        perPixelSamples = 9;
-        maxBounces = 6;
+        perPixelSamples = 8;
+        maxBounces = 8;
     }
 
     {
@@ -144,7 +144,7 @@ int main()
         if (giveControl)
         {
             double speedMult = (double)cam.speed * dT * (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) ? 3.0 : 1.0);
-            speedMult /= (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) ? 7.0 : 1.0);
+            speedMult /= (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) ? 6.0 : 1.0);
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
                 cam.origin += cam.fwd * speedMult;
@@ -197,10 +197,8 @@ int main()
         }
 
 
-
         {
             shader.setUniform("rndSeed", (int)((long)utils::VeryRand(h * w, 4294967295u) - 2147483647));
-
 
             float
                 viewHeight = tanf((cam.fov / 2.0f) * (float)utils::PI / 180.0f) * 2.0f,

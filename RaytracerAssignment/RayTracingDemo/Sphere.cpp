@@ -13,7 +13,7 @@ bool Sphere::Intersection(const Ray& ray, double& t)
     double projectedDist = centerToOrigin * ray.direction;
 
     Vector3D pc = centerToOrigin - ray.direction * projectedDist;
-    double hitOffset = radius * radius - (pc * pc);
+    double hitOffset = (radius*radius) - (pc*pc);
 
     if (hitOffset < -0.000000000001)
         return false;
@@ -29,9 +29,8 @@ bool Sphere::Intersection(const Ray& ray, double& t)
 
     if (t0 < 0.0)
     {
+        if (t1 < 0.0) return false;
         t0 = t1;
-        if (t0 < 0.0)
-            return false;
     }
 
     t = t0;

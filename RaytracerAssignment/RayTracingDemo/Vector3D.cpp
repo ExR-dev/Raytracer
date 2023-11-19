@@ -1,3 +1,4 @@
+
 #include "Vector3D.h"
 
 #include <cmath>
@@ -17,11 +18,13 @@ Vector3D Vector3D::operator-(const Vector3D& right) const
 	return Vector3D(x - right.x, y - right.y, z - right.z);
 }
 
+/// <summary>Dot product</summary>
 double Vector3D::operator*(const Vector3D& right) const
 {
 	return (x * right.x) + (y * right.y) + (z * right.z);
 }
 
+/// <summary>Cross product</summary>
 Vector3D Vector3D::operator^(const Vector3D& right) const
 {
 	return Vector3D(
@@ -53,7 +56,7 @@ double Vector3D::GetZ() const
 
 double Vector3D::Length() const
 {
-	return sqrt(x * x + y * y + z * z);
+	return sqrt(x*x + y*y + z*z);
 }
 
 void Vector3D::Normalize()

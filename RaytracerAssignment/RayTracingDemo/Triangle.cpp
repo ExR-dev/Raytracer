@@ -13,8 +13,8 @@ bool Triangle::Intersection(const Ray& ray, double& t)
     Vector3D p0ToP2 = p2 - p0;
 
     // Backface culling
-    /*if ((p0ToP1 ^ p0ToP2) * ray.direction >= 0.0)
-        return false;*/
+    //if ((p0ToP1 ^ p0ToP2) * ray.direction >= 0.0)
+    //    return false;
 
     Vector3D h = ray.direction ^ p0ToP2;
     double a = p0ToP1 * h;

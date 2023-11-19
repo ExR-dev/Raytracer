@@ -22,6 +22,12 @@ const float PI = 3.1415926536;
 const float MINVAL = 0.000025;
 const float MAXVAL = 10000000.0;
 
+const float riVacuum = 1.0;
+const float riAir = 1.000293;
+const float riWater = 1.333;
+const float riGlass = 1.52;
+const float riDiamond = 2.417;
+
 uniform int imgW;
 uniform int imgH;
 
@@ -93,6 +99,11 @@ vec3 Lerp(vec3 p0, vec3 p1, float t)
     return (1.0 - t) * p0 + t * p1;
 }
 
+vec4 Lerp(vec4 p0, vec4 p1, float t)
+{
+    return (1.0 - t) * p0 + t * p1;
+}
+
 /*=======================================================================================================*/
 /*                                                 UTILS                                                 */
 /*=======================================================================================================*/
@@ -113,8 +124,8 @@ vec3 Lerp(vec3 p0, vec3 p1, float t)
 /*                                                SHAPES                                                 */
 /*=======================================================================================================*/
 
-// make sure to invert irD beforehand
-bool CheckBounds(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
+// Make sure to invert irD beforehand
+bool CheckBoundingBox(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
 {
     float tx1 = (bMin.x - rO.x) * irD.x;
     float tx2 = (bMax.x - rO.x) * irD.x;
@@ -137,19 +148,38 @@ bool CheckBounds(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
     return (tmax >= max(0.0, tmin)) && (tmin < MAXVAL);
 }
 
+bool CheckBoundingSphere(in vec3 rO, in vec3 rD, in vec4 s)
+{
+    vec3 oc = rO - s.xyz;
+    float b = dot(oc, rD);
+
+    vec3 qc = oc - rD * b;
+    float h = (s.w*s.w) - dot(qc, qc);
+
+    if (h < -MINVAL) 
+        return false;
+
+    return b * abs(b) < h;
+}
+
+
+
+
 
 
 // AABB
-#define AABBCOUNT 1
+#define AABBCOUNT 2
 const vec3 aabbShapes[AABBCOUNT * 2] = vec3[AABBCOUNT * 2](
-    vec3(-1.0, 2.0, -1.0), vec3(1.0, 4.0, 1.0)
+    vec3(-1.0, 2.0, -1.0), vec3(1.0, 4.0, 1.0),
+    vec3(1.4, 3.2, -2.3), vec3(2.2, 3.6, -2.0)
 );
 const vec4 aabbMats[AABBCOUNT * 3] = vec4[AABBCOUNT * 3](
-    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0)
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, rI x1, unused x2)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 0.0, 0.0, 1.0), vec4(1.0, 0.0, 0.0, 0.5), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
+bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     i *= 2;
 
@@ -179,37 +209,37 @@ bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p,
     l = (tmin > 0.0) ? tmin : tmax;
 
     p = rO + (rD * l);
-    int sgn = (tmin > 0.0) ? 1 : -1;
+    side = (tmin > 0.0) ? 1 : -1;
 
     if (l == tx1)
     { 
         p.x = aabbShapes[i].x; 
-        n = vec3(-sgn,0,0); 
+        n = vec3(-side,0,0); 
     }
     else if (l == tx2)
     { 
         p.x = aabbShapes[i+1].x; 
-        n = vec3(sgn,0,0); 
+        n = vec3(side,0,0); 
     }
     else if (l == ty1)
     { 
         p.y = aabbShapes[i].y; 
-        n = vec3(0,-sgn,0); 
+        n = vec3(0,-side,0); 
     }
     else if (l == ty2)
     { 
         p.y = aabbShapes[i+1].y; 
-        n = vec3(0,sgn,0);
+        n = vec3(0,side,0);
     }
     else if (l == tz1)
     { 
         p.z = aabbShapes[i].z; 
-        n = vec3(0,0,-sgn); 
+        n = vec3(0,0,-side); 
     }
     else if (l == tz2)
     { 
         p.z = aabbShapes[i+1].z; 
-        n = vec3(0,0,sgn); 
+        n = vec3(0,0,side); 
     }
     return true;
 }
@@ -223,16 +253,20 @@ const vec3 obbShapes[OBBCOUNT * 5] = vec3[OBBCOUNT * 5](
     // vec3(x-axis x3), vec3(y-axis x3), vec3(z-axis x3)
     vec3(1.0, 4.5, -2.0), vec3(0.75, 0.5, 1.0),
     normalize(vec3(6.0, 4.0, -2.0)), normalize(vec3(-0.01965655, -0.384051845, -0.92310227)), normalize(vec3(-0.5970381, 0.73607948, -0.3189553))
+
+    //vec3(2.0, 2.5, 2.5), vec3(1.0, 2.0, 1.25),
+    //normalize(vec3(6.0, 4.0, -2.0)), normalize(vec3(-0.01965655, -0.384051845, -0.92310227)), normalize(vec3(-0.5970381, 0.73607948, -0.3189553))
 );
 const vec4 obbMats[OBBCOUNT * 3] = vec4[OBBCOUNT * 3](
-    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, rI x1, unused x2)
     vec4(0.1, 1.0, 0.5, 1.0), vec4(0.5, 1.0, 0.7, 0.1), vec4(0.2, 0.0, 0.0, 0.0)
+    //vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0)
 );
 
-bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
+bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     i *= 5;
-    float 
+    float
         minV = -MAXVAL, 
         maxV = MAXVAL;
 
@@ -277,7 +311,7 @@ bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
                 maxV = t1;
                 nMax = tnMax;
             }
-
+            
             if (minV > maxV)	return false;
             if (maxV < 0.0)	    return false;
         }
@@ -287,13 +321,15 @@ bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
     if (minV > 0.0)
     {
-       l = minV;
-       n = nMin;
+        l = minV;
+        n = nMin;
+        side = 1;
     }
     else
     {
         l = maxV;
         n = -nMax;
+        side = -1;
     }
 
     p = rO + rD * l;
@@ -304,16 +340,18 @@ bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
 
 // SPHERE
-#define SPHERECOUNT 1
+#define SPHERECOUNT 2
 const vec4 sphereShapes[SPHERECOUNT] = vec4[SPHERECOUNT](
-    vec4(2.0, 1.5, 2.5, 1.0)
+    vec4(2.0, 1.5, 2.5, 1.0),
+    vec4(1.5, 3.5, -2.0, 1.0)
 );
 const vec4 sphereMats[SPHERECOUNT * 3] = vec4[SPHERECOUNT * 3](
-    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(1.0, 0.0, 0.0, 0.0)
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, rI x1, unused x2)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 0.1), vec4(1.0, 0.0, 0.0, 0.0),
+    vec4(1.0, 1.0, 1.0, 0.2), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.97, riGlass, 0.0, 0.0)
 );
 
-bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
+bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     vec3 oc = rO - sphereShapes[i].xyz;
     float b = dot(oc, rD);
@@ -338,30 +376,33 @@ bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 
 
     if (t0 < 0.0)
     {
+        if (t1 < 0.0) return false;
         t0 = t1;
-        if (t0 < 0.0)
-            return false;
     }
 
     l = t0;
     p = rO + rD * l;
     n = (p - sphereShapes[i].xyz) / sphereShapes[i].w;
+    side = 1;
 
     if (dot(n, rD) > 0.0)
-        n *= -1.0;
+    {
+        n *= -1.0; 
+        side = -1;
+    }
     return true;
 }
 // SPHERE
 
 
 // TRI
-#define TRICOUNT 14
+#define TRICOUNT 8
 const vec3 triShapes[TRICOUNT * 3] = vec3[TRICOUNT * 3](
     vec3(-3.5, 0.0, -4.5), vec3(-3.5, 10.0, -4.5), vec3(-3.5, 0.0, 4.5),
     vec3(-3.5, 0.0, 4.5), vec3(-3.5, 10.0, -4.5), vec3(-3.5, 10.0, 4.5),
 
-    vec3(3.5, 0.0, 4.5), vec3(3.5, 10.0, 4.5), vec3(3.5, 0.0, -4.5),
-    vec3(3.5, 0.0, -4.5), vec3(3.5, 10.0, 4.5), vec3(3.5, 10.0, -4.5),
+    //vec3(3.5, 0.0, 4.5), vec3(3.5, 10.0, 4.5), vec3(3.5, 0.0, -4.5),
+    //vec3(3.5, 0.0, -4.5), vec3(3.5, 10.0, 4.5), vec3(3.5, 10.0, -4.5),
 
 
     vec3(-3.5, 0.0, -4.5), vec3(-3.5, 0.0, 4.5), vec3(3.5, 0.0, -4.5),
@@ -372,22 +413,23 @@ const vec3 triShapes[TRICOUNT * 3] = vec3[TRICOUNT * 3](
 
 
     vec3(3.5, 0.0, -4.5), vec3(3.5, 10.0, -4.5), vec3(-3.5, 0.0, -4.5),
-    vec3(-3.5, 0.0, -4.5), vec3(3.5, 10.0, -4.5), vec3(-3.5, 10.0, -4.5),
+    vec3(-3.5, 0.0, -4.5), vec3(3.5, 10.0, -4.5), vec3(-3.5, 10.0, -4.5)
 
-    vec3(-3.5, 0.0, 4.5), vec3(-3.5, 10.0, 4.5), vec3(3.5, 0.0, 4.5),
-    vec3(3.5, 0.0, 4.5), vec3(-3.5, 10.0, 4.5), vec3(3.5, 10.0, 4.5),
+    //vec3(-3.5, 0.0, 4.5), vec3(-3.5, 10.0, 4.5), vec3(3.5, 0.0, 4.5),
+    //vec3(3.5, 0.0, 4.5), vec3(-3.5, 10.0, 4.5), vec3(3.5, 10.0, 4.5),
+
 
     
-    vec3(-1.5, 9.99, 2.5), vec3(-1.5, 9.99, -2.5), vec3(1.5, 9.99, 2.5),
-    vec3(1.5, 9.99, 2.5), vec3(-1.5, 9.99, -2.5), vec3(1.5, 9.99, -2.5)
+    //vec3(-1.5, 9.99, 2.5), vec3(-1.5, 9.99, -2.5), vec3(1.5, 9.99, 2.5),
+    //vec3(1.5, 9.99, 2.5), vec3(-1.5, 9.99, -2.5), vec3(1.5, 9.99, -2.5)
 );
 const vec4 triMats[TRICOUNT * 3] = vec4[TRICOUNT * 3](
-    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, rI x1, unused x2)
     vec4(0.85, 0.2, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
     vec4(0.85, 0.2, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
-    vec4(0.15, 0.7, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.15, 0.7, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    //vec4(0.15, 0.7, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    //vec4(0.15, 0.7, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
 
     vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
@@ -398,18 +440,18 @@ const vec4 triMats[TRICOUNT * 3] = vec4[TRICOUNT * 3](
 
 
     vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    vec4(0.2, 0.85, 0.1, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 
-    vec4(0.7, 0.15, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(0.7, 0.15, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    //vec4(0.7, 0.15, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
+    //vec4(0.7, 0.15, 0.85, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0),
 
     
 
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 2.0), vec4(0.0, 0.0, 0.0, 0.0),
-    vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 2.0), vec4(0.0, 0.0, 0.0, 0.0)
+    //vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 2.0), vec4(0.0, 0.0, 0.0, 0.0),
+    //vec4(1.0, 1.0, 1.0, 1.0), vec4(1.0, 1.0, 1.0, 2.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
+bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     i *= 3;
     vec3 edge1 = triShapes[i+1] - triShapes[i];
@@ -446,6 +488,7 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
         l = t;
         p = rO + rD * t;
         n = normalize(cross(edge1, edge2));
+        side = (dot(n, rD) < 0.0) ? 1 : -1;
 
         // If no backface-culling
         /*if (dot(n, rD) > 0.0)
@@ -458,16 +501,16 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
 
 // PLANE
-#define PLANECOUNT 0
-const vec3 planeShapes[2 + PLANECOUNT * 2] = vec3[2 + PLANECOUNT * 2](
-    vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0)
+#define PLANECOUNT 1
+const vec3 planeShapes[PLANECOUNT * 2] = vec3[PLANECOUNT * 2](
+    vec3(0.0, -0.001, 0.0), vec3(0.0, 1.0, 0.0)
 );
-const vec4 planeMats[3 + PLANECOUNT * 3] = vec4[3 + PLANECOUNT * 3](
-    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, refractivity x1, unused x2)
-    vec4(0.7, 1.0, 0.5, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
+const vec4 planeMats[PLANECOUNT * 3] = vec4[PLANECOUNT * 3](
+    // vec4(color x3, opacity x1), vec4(emission x3, strength x1), vec4(reflectivity x1, rI x1, unused x2)
+    vec4(1.0, 1.0, 1.0, 1.0), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.0, 0.0, 0.0, 0.0)
 );
 
-bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n)
+bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     i *= 2;
     float a = dot(planeShapes[i+1], rD);
@@ -483,6 +526,7 @@ bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p
     l = t;
     p = rO + rD * t;
     n = planeShapes[i+1];
+    side = (dot(n, rD) < 0.0) ? 1 : -1;
     return true;
 }
 // PLANE
@@ -521,24 +565,75 @@ uniform bool disableLighting;
 
 
 
-bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3 n, out vec4 col, out vec4 emission, out vec4 surface)
+uniform vec4 peakCol = vec4(0.8, 0.9, 1.0, 1.0);
+uniform vec4 horizonCol = vec4(0.6, 0.8, 0.9, 1.0);
+uniform vec4 voidCol = vec4(0.6, 0.8, 0.9, 0.25);
+uniform vec3 sunCol = vec3(1.0, 0.9, 0.6);
+uniform vec3 sunDir = normalize(vec3(30, 60, 15));
+uniform float sunWidth = 0.01, sunFlare = 0.01;
+
+vec3 SampleSkybox(in vec3 rD)
+{
+    /*vec4 result = horizonCol;
+    result = Lerp(result,
+        peakCol,
+        clamp(dot(rD, vec3(0.0, 1.0, 0.0)), 0.0, 1.0)
+    );
+
+    float sunOffset = dot(rD, -sunDir) * 0.5 + 0.5 - (sunWidth);
+    sunOffset /= 1.0 - sunWidth;
+    sunOffset /= sunFlare;
+    sunOffset = 1.0 - sunOffset;
+
+    if (sunOffset > 1.0)
+        return sunCol.xyz * sunCol.w;
+    if (sunOffset < 0.0)
+        return result.xyz * result.w;
+
+    sunOffset = pow(exp2(sunOffset * 0.95) - 1.0, 3.0);
+
+    result = Lerp(result,
+        sunCol,
+        clamp(sunOffset, 0.0, 1.0)
+    );
+
+    return result.xyz * result.w;*/
+
+				
+	float skyGradientT = pow(smoothstep(0.0, 0.4, rD.y), 0.35);
+	float groundToSkyT = smoothstep(-0.01, 0.0, rD.y);
+	vec3 skyGradient = Lerp(horizonCol.xyz*horizonCol.w, peakCol.xyz*peakCol.w, skyGradientT);
+	float sun = pow(max(0.0, dot(rD, sunDir)), 256.0) * 1.0;
+	// Combine ground, sky, and sun
+	vec3 composite = Lerp(voidCol.xyz*voidCol.w, skyGradient, groundToSkyT) + sunCol * sun * float(groundToSkyT >= 1);
+	return composite;
+}
+
+
+
+bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3 n, inout int s, out vec4 col, out vec4 emission, out vec4 surface)
 {
     //rO += rD * MINVAL;
-    rO += n * MINVAL;
+    if (dot(rD, n) > 0.0)
+        rO += n * MINVAL;
+    else
+        rO -= n * MINVAL;
 
     bool hasHit = false;
     float nl;
     vec3 np, nn;
+    int ss;
 
     for (int i = 0; i < AABBCOUNT; i++)
     {
-        if (RayAABBIntersect(rO, rD, i, nl, np, nn))
+        if (RayAABBIntersect(rO, rD, i, nl, np, nn, ss))
         {
             if (nl < l)
             {
                 l = nl; 
                 p = np; 
                 n = nn;
+                s = ss;
 
                 col = aabbMats[i*3];
                 emission = aabbMats[i*3+1];
@@ -550,13 +645,14 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
 
     for (int i = 0; i < OBBCOUNT; i++)
     {
-        if (RayOBBIntersect(rO, rD, i, nl, np, nn))
+        if (RayOBBIntersect(rO, rD, i, nl, np, nn, ss))
         {
             if (nl < l)
             {
                 l = nl; 
                 p = np; 
                 n = nn;
+                s = ss;
 
                 col = obbMats[i*3];
                 emission = obbMats[i*3+1];
@@ -568,13 +664,14 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
     
     for (int i = 0; i < SPHERECOUNT; i++)
     {
-        if (RaySphereIntersect(rO, rD, i, nl, np, nn))
+        if (RaySphereIntersect(rO, rD, i, nl, np, nn, ss))
         {
             if (nl < l)
             {
                 l = nl; 
                 p = np; 
                 n = nn;
+                s = ss;
 
                 col = sphereMats[i*3];
                 emission = sphereMats[i*3+1];
@@ -586,13 +683,14 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
     
     for (int i = 0; i < TRICOUNT; i++)
     {
-        if (RayTriIntersect(rO, rD, i, nl, np, nn))
+        if (RayTriIntersect(rO, rD, i, nl, np, nn, ss))
         {
             if (nl < l)
             {
                 l = nl; 
                 p = np; 
                 n = nn;
+                s = ss;
 
                 col = triMats[i*3];
                 emission = triMats[i*3+1];
@@ -604,13 +702,14 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
     
     for (int i = 0; i < PLANECOUNT; i++)
     {
-        if (RayPlaneIntersect(rO, rD, i, nl, np, nn))
+        if (RayPlaneIntersect(rO, rD, i, nl, np, nn, ss))
         {
             if (nl < l)
             {
                 l = nl; 
                 p = np; 
                 n = nn;
+                s = ss;
 
                 col = planeMats[i*3];
                 emission = planeMats[i*3+1];
@@ -624,31 +723,40 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
 }
 
 
-vec3 Raytrace(in vec3 rO, in vec3 rD, inout uint seed)
+vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri1, inout uint seed)
 {
 	vec3 incomingLight = vec3(0);
 	vec3 rayColour = vec3(1);
 
     for (int i = 0; i <= maxBounces; i++)
     {
-        //rO += rD * MINVAL;
-        
         float l = MAXVAL;
         vec3 p, n;
+        int s;
 
         vec4 color = vec4(0);
         vec4 emission = vec4(0);
         vec4 surface = vec4(0);
 
-        if (GetFirstHit(rO, rD, l, p, n, color, emission, surface))
+        if (GetFirstHit(rO, rD, l, p, n, s, color, emission, surface))
         {
             if (disableLighting /*&& i == 1*/)
-                return color.xyz + emission.xyz * emission.w;
+                return (s > 0 ? color.xyz : 1.0 - color.xyz) + emission.xyz * emission.w;
+                
+			if (RandomValue(seed) > color.w)
+            {
+                float ri2 = surface.y;
+                float eta = (s > 0) ? ri1/ri2 : ri2/ri1;
 
+			    rD = normalize(refract(rD, n, eta));
+            }
+            else
+            {
+			    vec3 diffuseDir = normalize(n + RandDir(seed));
+			    vec3 specularDir = reflect(rD, n);
+			    rD = normalize(Lerp(diffuseDir, specularDir, surface.x));
+            }
             rO = p;
-			vec3 diffuseDir = normalize(n + RandDir(seed));
-			vec3 specularDir = reflect(rD, n);
-			rD = normalize(Lerp(diffuseDir, specularDir, surface.x));
 
 			// Update light calculations
 			vec3 emittedLight = emission.xyz * emission.w;
@@ -661,10 +769,12 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, inout uint seed)
 			rayColour *= 1.0 / k; 
         }
         else
-        {
-			//incomingLight += rD * rayColour;
-		    //incomingLight += vec3(0.1) * rayColour;
-            break;
+        { // Ambient
+            vec3 skyLight = SampleSkybox(rD);
+			incomingLight += skyLight * rayColour;
+			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
+			rayColour *= 1.0 / k; 
+            break; 
         }
     }
 
@@ -710,8 +820,8 @@ void main(void)
 
     if (randomizeDir)
     {
-        uv.y += ((RandomValue(seed) - 0.5)) / float(imgH);
-        uv.x += ((RandomValue(seed) - 0.5)) / float(imgW);
+        uv.y += ((RandomValue(seed) - 0.5) / 1.5) / float(imgH);
+        uv.x += ((RandomValue(seed) - 0.5) / 1.5) / float(imgW);
     }
     
     vec3 botLeftLocal = vec3(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
@@ -720,8 +830,10 @@ void main(void)
     pixDir = normalize(pixDir);
 
     for (int i = 0; i < samples; i++)
-        outCol += Raytrace(camPos, pixDir, seed);
+        outCol += Raytrace(camPos, pixDir, riAir, seed);
     outCol /= samples;
+
+    outCol = clamp(outCol, 0.0, 1.0);
 
     float avgWeight = 1.0 / (float(frameCount + 1));
     outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);

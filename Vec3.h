@@ -217,10 +217,6 @@ inline Vec3 RandDir()
     do     v = (Vec3(utils::RandNum(), utils::RandNum(), utils::RandNum()) * 2.0) - 1.0;
     while (v.MagSqr() > 1.0);
 
-    /*v.x *= (utils::RandNum() <= 0.5) ? -1.0 : 1.0;
-    v.y *= (utils::RandNum() <= 0.5) ? -1.0 : 1.0;
-    v.z *= (utils::RandNum() <= 0.5) ? -1.0 : 1.0;*/
-
     double m = v.Mag();
 
     if (m > utils::MINVAL)

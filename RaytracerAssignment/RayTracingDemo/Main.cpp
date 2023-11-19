@@ -1,4 +1,3 @@
-#include <cstdint>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -11,7 +10,7 @@
 #include "Plane.h"
 
 #include <iostream>
-
+#include <cstdint>
 
 
 struct Cam
@@ -29,6 +28,7 @@ struct Cam
     {
         fwd.Normalize();
 
+        // Calculate right & up directions based on given forward direction
         right = fwd ^ Vector3D(0, -1, 0);
         right.Normalize();
 
@@ -61,7 +61,7 @@ Vector3D CastRayInScene(const Scene& scene, const Ray& ray)
         if (currShape->Intersection(ray, tempHit))
         {
             if (closestShape != nullptr && tempHit >= closestHit)
-                continue;
+                continue; // Currently closest intersection is still closer
 
             closestHit = tempHit;
             closestShape = currShape;
@@ -70,10 +70,10 @@ Vector3D CastRayInScene(const Scene& scene, const Ray& ray)
 
     if (closestShape != nullptr)
     {
-        double light = 1.0 / (1.0 + closestHit / 7.5);
+        double light = 1.0 / (1.0 + closestHit / 8.0); // Apply light based on distance
         return closestShape->GetColour() * std::min(light, 1.0);
     }
-    return {0,0,0};
+    return Vector3D(0.0, 0.0, 0.0); // No hit, return ambient light
 }
 
 
@@ -82,11 +82,12 @@ int main()
 {
     // Build Scene
     Cam cam(
-        70.0f,
-        Vector3D(0.0, 0.0, -5.0),
-        {0.0, 0.0, 1.0}
+        70.0f, // fov
+        Vector3D(0.0, 0.0, -5.0), // origin
+        Vector3D(0.0, 0.0, 1.0) // direction
     );
 
+    // Collection of all shapes in the scene
     Shape* shapePtrs[] = {
         new Plane(
             Vector3D(0.0, 0.15, 0.8),
@@ -202,38 +203,32 @@ int main()
 
 
     // Render Scene
-    const int channels = 3;
-    const unsigned int
+    const unsigned int 
+        channels = 3,
         width = 1920,
         height = 1080,
         dim = width * height;
 
-    uint8_t* imageData = new uint8_t[width * height * channels];
+    uint8_t* pixelBuffer = new uint8_t[width * height * channels];
 
+    double 
+        viewHeight = (double)cam.fov / 8.0, 
+        viewWidth = viewHeight / ((double)height / (double)width);
 
-    double viewHeight, viewWidth;
-
-    viewHeight = (double)cam.fov / 8.0;
-    viewWidth = viewHeight / ((double)height / (double)width);
-
-    Vector3D botLeftLocal(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
-
-#pragma omp parallel for num_threads(8)
+    #pragma omp parallel for num_threads(8) // Make it go faster (Vroom vroom)
     for (int i = 0; i < dim; i++)
     {
-        unsigned int
+        unsigned int // Current pixel-coordinates
             x = i % width,
             y = i / width;
 
-        double u, v;
-        v = 1.0 - (double)y / (double)height;
-        u = (double)x / (double)width;
+        double // 0-1 clamped screen-coordinates
+            u = 1.0 - (double)y / (double)height, 
+            v = (double)x / (double)width;
 
         Vector3D
-            pixPos = cam.origin,
+            pixPos = cam.origin + cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5)),
             pixDir = cam.fwd;
-
-        pixPos = pixPos + cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5));
 
         Ray ray(pixPos, pixDir);
         Vector3D hitSurface = CastRayInScene(scene, ray);
@@ -243,19 +238,19 @@ int main()
             gCol = hitSurface.GetY() * hitSurface.GetY() * 255.0, 
             bCol = hitSurface.GetZ() * hitSurface.GetZ() * 255.0;
 
-        imageData[i * 3 + 0] = (uint8_t)(std::max(0.0, std::min(rCol, 255.0)));
-        imageData[i * 3 + 1] = (uint8_t)(std::max(0.0, std::min(gCol, 255.0)));
-        imageData[i * 3 + 2] = (uint8_t)(std::max(0.0, std::min(bCol, 255.0)));
+        pixelBuffer[i * 3 + 0] = (uint8_t)(std::max(0.0, std::min(rCol, 255.0)));
+        pixelBuffer[i * 3 + 1] = (uint8_t)(std::max(0.0, std::min(gCol, 255.0)));
+        pixelBuffer[i * 3 + 2] = (uint8_t)(std::max(0.0, std::min(bCol, 255.0)));
     }
 
 
     // Save render
-	stbi_write_png("Traced.png", width, height, channels, imageData, width * channels);
+	stbi_write_png("Traced.png", width, height, channels, pixelBuffer, width * channels);
 
 
     // Free memory
     for (int i = 0; i < shapeCount; i++)
         delete shapePtrs[i];
-	delete[] imageData;
+	delete[] pixelBuffer;
 	return 0;
 }
