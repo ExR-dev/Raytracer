@@ -83,7 +83,7 @@ int main()
         randomizeSampleDir = true;
         disableLighting = false;
         perPixelSamples = 12;
-        maxBounces = 8;
+        maxBounces = 4;
     }
 
     {
@@ -98,7 +98,7 @@ int main()
 
             const std::string shapeName = "aabb";
 
-            int iShape = 0, iMat = 0;
+            int iShape = 0, iMat = 0, iBounds = 0;
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-1.0, 2.0, -1.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(1.0, 4.0, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));
@@ -111,6 +111,10 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 0.666));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
 
+
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.7, 3.0, -0.65, 2.75));
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
+
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
         
@@ -121,7 +125,7 @@ int main()
 
             const std::string shapeName = "obb";
 
-            int iShape = 0, iMat = 0;
+            int iShape = 0, iMat = 0, iBounds = 0;
             /*shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(1.0, 4.5, -2.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.75, 0.5, 1.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), Normalize(Vec3(6.0, 4.0, -2.0)));
@@ -130,6 +134,10 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.1, 1.0, 0.5, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.5, 1.0, 0.7, 0.1));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.2, 0.0, 0.0, 0.0));*/
+
+
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
@@ -141,7 +149,7 @@ int main()
 
             const std::string shapeName = "sphere";
 
-            int iShape = 0, iMat = 0;
+            int iShape = 0, iMat = 0, iBounds = 0;
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(2.0, 1.5, 2.5, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.1));
@@ -151,6 +159,10 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.2));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.97, riGlass, 0.0, 0.0));
+
+
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(1.75, 2.5, 0.25, 3.5));
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
@@ -162,7 +174,7 @@ int main()
 
             const std::string shapeName = "tri";
 
-            int iShape = 0, iMat = 0;
+            int iShape = 0, iMat = 0, iBounds = 0;
             {
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 0.0, -4.5));
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 10.0, -4.5));
@@ -226,6 +238,10 @@ int main()
                 shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
                 shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
             }
+
+
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 5.0, 0.0, 7.7));
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }

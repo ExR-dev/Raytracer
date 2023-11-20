@@ -168,9 +168,14 @@ bool CheckBoundingSphere(in vec3 rO, in vec3 rD, in vec4 s)
 
 
 // AABB
+const int AABBMAX = 16;
 uniform int aabbCount;
-uniform vec3 aabbShapes[16*2];
-uniform vec4 aabbMats[16*3];
+
+uniform vec4 aabbBounds[AABBMAX];
+uniform int aabbBoundCoverage[AABBMAX];
+
+uniform vec3 aabbShapes[AABBMAX*2];
+uniform vec4 aabbMats[AABBMAX*3];
 
 bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -240,9 +245,14 @@ bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p,
 
 
 // OBB
+const int OBBMAX = 16;
 uniform int obbCount;
-uniform vec3 obbShapes[16*5];
-uniform vec4 obbMats[16*3];
+
+uniform vec4 obbBounds[OBBMAX];
+uniform int obbBoundCoverage[OBBMAX];
+
+uniform vec3 obbShapes[OBBMAX*5];
+uniform vec4 obbMats[OBBMAX*3];
 
 bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -321,9 +331,14 @@ bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
 
 // SPHERE
+const int SPHEREMAX = 16;
 uniform int sphereCount;
-uniform vec4 sphereShapes[16*1];
-uniform vec4 sphereMats[16*3];
+
+uniform vec4 sphereBounds[SPHEREMAX];
+uniform int sphereBoundCoverage[SPHEREMAX];
+
+uniform vec4 sphereShapes[SPHEREMAX*1];
+uniform vec4 sphereMats[SPHEREMAX*3];
 
 bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -370,9 +385,14 @@ bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 
 
 
 // TRI
+const int TRIMAX = 32;
 uniform int triCount;
-uniform vec3 triShapes[32*3];
-uniform vec4 triMats[32*3];
+
+uniform vec4 triBounds[TRIMAX];
+uniform int triBoundCoverage[TRIMAX];
+
+uniform vec3 triShapes[TRIMAX*3];
+uniform vec4 triMats[TRIMAX*3];
 
 bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -424,9 +444,11 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
 
 // PLANE
+const int PLANEMAX = 8;
 uniform int planeCount;
-uniform vec3 planeShapes[8*2];
-uniform vec4 planeMats[8*3];
+
+uniform vec3 planeShapes[PLANEMAX*2];
+uniform vec4 planeMats[PLANEMAX*3];
 
 bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -515,85 +537,186 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
     float nl;
     vec3 np, nn;
     int ss;
-
-    for (int i = 0; i < aabbCount; i++)
+    
+    if (disableLighting)
     {
-        if (RayAABBIntersect(rO, rD, i, nl, np, nn, ss))
-        {
-            if (nl < l)
-            {
-                l = nl; 
-                p = np; 
-                n = nn;
-                s = ss;
-
-                col = aabbMats[i*3];
-                emission = aabbMats[i*3+1];
-                surface = aabbMats[i*3+2];
-                hasHit = true;
-            }
-        }
+        col = vec4(0);
+        emission = vec4(0,0,0,0);
+        surface = vec4(0);
     }
 
-    for (int i = 0; i < obbCount; i++)
+    int boundsID = 0;
+    int boundOffset = 0;
+    while (boundOffset < aabbCount)
     {
-        if (RayOBBIntersect(rO, rD, i, nl, np, nn, ss))
+        if (CheckBoundingSphere(rO, rD, aabbBounds[boundsID]))
         {
-            if (nl < l)
+            if (disableLighting)
             {
-                l = nl; 
-                p = np; 
-                n = nn;
-                s = ss;
-
-                col = obbMats[i*3];
-                emission = obbMats[i*3+1];
-                surface = obbMats[i*3+2];
+                l = 1.0;
+                p = rD * l; 
+                n = -rD;
+                s = 1;
+                col *= vec4(1.0,0.85,0.85,1.0);
+                emission += vec4(0.2,0.0,0.0,0.1);
                 hasHit = true;
             }
+            else
+            {
+                for (int i = boundOffset; i < min(boundOffset + aabbBoundCoverage[boundsID], aabbCount); i++)
+                {
+                    if (RayAABBIntersect(rO, rD, i, nl, np, nn, ss))
+                    {
+                        if (nl < l)
+                        {
+                            l = nl; 
+                            p = np; 
+                            n = nn;
+                            s = ss;
+
+                            col = aabbMats[i*3];
+                            emission = aabbMats[i*3+1];
+                            surface = aabbMats[i*3+2];
+                            hasHit = true;
+                        }
+                    }
+                }
+
+            }
+
+            
         }
+        boundOffset += aabbBoundCoverage[boundsID++];
     }
     
-    for (int i = 0; i < sphereCount; i++)
+    boundsID = 0;
+    boundOffset = 0;
+    while (boundOffset < obbCount)
     {
-        if (RaySphereIntersect(rO, rD, i, nl, np, nn, ss))
+        if (CheckBoundingSphere(rO, rD, obbBounds[boundsID]))
         {
-            if (nl < l)
+            if (disableLighting)
             {
-                l = nl;
-                p = np; 
-                n = nn;
-                s = ss;
-
-                col = sphereMats[i*3];
-                emission = sphereMats[i*3+1];
-                surface = sphereMats[i*3+2];
+                l = 1.0;
+                p = rD * l; 
+                n = -rD;
+                s = 1;
+                col *= vec4(0.85,1.0,0.85,1.0);
+                emission += vec4(0.0,0.2,0.0,0.1);
                 hasHit = true;
             }
+            else
+            {
+                for (int i = boundOffset; i < min(boundOffset + obbBoundCoverage[boundsID], obbCount); i++)
+                {
+                    if (RayOBBIntersect(rO, rD, i, nl, np, nn, ss))
+                    {
+                        if (nl < l)
+                        {
+                            l = nl; 
+                            p = np; 
+                            n = nn;
+                            s = ss;
+
+                            col = obbMats[i*3];
+                            emission = obbMats[i*3+1];
+                            surface = obbMats[i*3+2];
+                            hasHit = true;
+                        }
+                    }
+                }
+            }
         }
+        boundOffset += obbBoundCoverage[boundsID++];
     }
     
-    for (int i = 0; i < triCount; i++)
+    boundsID = 0;
+    boundOffset = 0;
+    while (boundOffset < sphereCount)
     {
-        if (RayTriIntersect(rO, rD, i, nl, np, nn, ss))
-        {
-            if (nl < l)
+        if (CheckBoundingSphere(rO, rD, sphereBounds[boundsID]))
+        {    
+            if (disableLighting)
             {
-                l = nl; 
-                p = np; 
-                n = nn;
-                s = ss;
-
-                col = triMats[i*3];
-                emission = triMats[i*3+1];
-                surface = triMats[i*3+2];
+                l = 1.0;
+                p = rD * l; 
+                n = -rD;
+                s = 1;
+                col *= vec4(0.85,0.85,1.0,1.0);
+                emission += vec4(0.0,0.0,0.2,0.1);
                 hasHit = true;
             }
+            else
+            {
+                for (int i = boundOffset; i < min(boundOffset + sphereBoundCoverage[boundsID], sphereCount); i++)
+                {
+                    if (RaySphereIntersect(rO, rD, i, nl, np, nn, ss))
+                    {
+                        if (nl < l)
+                        {
+                            l = nl;
+                            p = np; 
+                            n = nn;
+                            s = ss;
+
+                            col = sphereMats[i*3];
+                            emission = sphereMats[i*3+1];
+                            surface = sphereMats[i*3+2];
+                            hasHit = true;
+                        }
+                    }
+                }
+            }
         }
+        boundOffset += sphereBoundCoverage[boundsID++];
+    }
+    
+    boundsID = 0;
+    boundOffset = 0;
+    while (boundOffset < triCount)
+    {
+        if (CheckBoundingSphere(rO, rD, triBounds[boundsID]))
+        {    
+            if (disableLighting)
+            {
+                l = 1.0;
+                p = rD * l; 
+                n = -rD;
+                s = 1;
+                col *= vec4(1.0,1.0,1.0,1.0);
+                emission += vec4(0.15,0.15,0.15,0.1);
+                hasHit = true;
+            }
+            else
+            {
+                for (int i = boundOffset; i < min(boundOffset + triBoundCoverage[boundsID], triCount); i++)
+                {
+                    if (RayTriIntersect(rO, rD, i, nl, np, nn, ss))
+                    {
+                        if (nl < l)
+                        {
+                            l = nl; 
+                            p = np; 
+                            n = nn;
+                            s = ss;
+
+                            col = triMats[i*3];
+                            emission = triMats[i*3+1];
+                            surface = triMats[i*3+2];
+                            hasHit = true;
+                        }
+                    }
+                }
+            }
+        }
+        boundOffset += triBoundCoverage[boundsID++];
     }
     
     for (int i = 0; i < planeCount; i++)
     {
+        if (disableLighting)
+            break;
+
         if (RayPlaneIntersect(rO, rD, i, nl, np, nn, ss))
         {
             if (nl < l)
@@ -633,7 +756,7 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri1, inout uint seed)
         if (GetFirstHit(rO, rD, l, p, n, s, color, emission, surface))
         {
             if (disableLighting /*&& i == 1*/)
-                return (s > 0 ? color.xyz : 1.0 - color.xyz) + emission.xyz * emission.w;
+                return color.xyz * color.w + emission.xyz * emission.w;
                 
 			if (RandomValue(seed) > color.w)
             {
