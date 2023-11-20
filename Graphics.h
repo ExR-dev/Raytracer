@@ -308,6 +308,7 @@ constexpr double riVacuum = 1.0;
 constexpr double riAir = 1.000293;
 constexpr double riWater = 1.333;
 constexpr double riGlass = 1.52;
+constexpr double riDiamond = 2.417;
 
 struct Material
 {

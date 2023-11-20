@@ -224,3 +224,16 @@ inline Vec3 RandDir()
     else
         return RandDir();
 }
+
+
+sf::Glsl::Vec3 Normalize(sf::Glsl::Vec3 v)
+{
+    Vec3 t = Vec3(v.x, v.y, v.z);
+    t.Normalize();
+    return sf::Glsl::Vec3(t.x, t.y, t.z);
+}
+sf::Glsl::Vec3 Normalize(Vec3 v)
+{
+    v.Normalize();
+    return sf::Glsl::Vec3(v.x, v.y, v.z);
+}
