@@ -9,28 +9,28 @@ Triangle::Triangle(const Vector3D& colour, const Vector3D& p0, const Vector3D& p
 
 bool Triangle::Intersection(const Ray& ray, double& t)
 {
-    Vector3D bXAxis = p1 - p0; // Barycentric axis towards p1
-    Vector3D bYAxis = p2 - p0; // Barycentric axis towards p2
+    Vector3D baU = p1 - p0; // Barycentric u-axis
+    Vector3D baV = p2 - p0; // Barycentric v-axis
 
-    Vector3D idealBXAxis = ray.direction ^ bYAxis; // Direction of barycentric x-axis if it is orthogonal with y-axis and ray
-    double bXAxisRatio = bXAxis * idealBXAxis; // Length of barycentric x-axis from perspective of ray
+    Vector3D orthoBaU = ray.direction ^ baV; // Direction of u-axis if it is orthogonal to v-axis and ray
+    double baUScale = baU * orthoBaU; // Length of u-axis from ray's perspective
 
-    if (abs(bXAxisRatio) < 0.000000000001)
-        return false; // Ray is parallell with triangle or triangle is infinitely thin
+    if (abs(baUScale) < 0.000000000001)
+        return false; // Ray is parallel to triangle or triangle is infinitely thin
 
-    Vector3D dirToBOrigin = ray.origin - p0;
-    double invBXAxisRatio = 1.0 / bXAxisRatio;
-    double bU = invBXAxisRatio * (dirToBOrigin * idealBXAxis);
+    Vector3D rayToBOrig = ray.origin - p0;
+    double baUScaleInv = 1.0 / baUScale;
+    double bU = baUScaleInv * (rayToBOrig * orthoBaU); // Ray's barycentric u-coordinate
 
     if (bU < 0.0 || bU > 1.0)
-        return false;
+        return false; // Ray misses triangle in u-axis
 
-    Vector3D idealBYAxis = dirToBOrigin ^ bXAxis;
-    double bV = invBXAxisRatio * (ray.direction * idealBYAxis);
+    Vector3D orthoBaV = rayToBOrig ^ baU; // Direction of v-axis if it is orthogonal with u-axis
+    double bV = baUScaleInv * (ray.direction * orthoBaV); // Ray's barycentric v-coordinate
 
-    if ((bV < 0.0) || (bV > 1.0 - bU))
-        return false;
+    if (bV < 0.0 || bV > (1.0 - bU))
+        return false; // Ray misses triangle in v-axis
 
-    t = invBXAxisRatio * (bYAxis * idealBYAxis);
+    t = baUScaleInv * (baV * orthoBaV);
     return (t > 0.0);
 }

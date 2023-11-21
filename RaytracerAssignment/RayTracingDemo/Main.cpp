@@ -90,15 +90,38 @@ int main()
     // Collection of all shapes in the scene
     Shape* shapePtrs[] = {
         new Plane(
-            Vector3D(0.0, 0.15, 0.8),
+            Vector3D(0.0, 0.1, 0.4),
             Vector3D(0, 0, 10),
             Vector3D(0, 0, -1)
         ),
 
-        new Sphere(
+        new OBB( // Blue box in center
+            Vector3D(0.5, 0.5, 1.0),
+            Vector3D(0.0, 0.0, 3.0),
+            Vector3D(1, 1, 1),
+            Vector3D(0, -1, 1),
+            Vector3D(-2, 1, 1),
+            0.6, 0.7, 0.9
+        ),
+
+        new Sphere( // Red sphere in center
             Vector3D(1.0, 0.5, 0.5),
-            Vector3D(0.0, 0.0, 3.0), 
+            Vector3D(0.0, 0.0, 3.0),
             1.0
+        ),
+
+        new Triangle( // Green triangle
+            Vector3D(0.5, 1.0, 0.5),
+            Vector3D(2, -0.3, 1),
+            Vector3D(1.4, 0.9, 2),
+            Vector3D(4.0, 1.4, 9.9)
+        ),
+
+        new Triangle( // Wine-red triangle
+            Vector3D(0.75, 0.25, 0.5),
+            Vector3D(2.0, 2.0, 5.5),
+            Vector3D(3.3, -0.9, 2.0),
+            Vector3D(2.25, -1.2, 1.0)
         ),
 
 
@@ -111,7 +134,7 @@ int main()
             0.3, 0.3, 0.3
         ),
         new Sphere( // Moon
-            Vector3D(1.25, 1.28, 1.27),
+            Vector3D(1.5, 1.5, 1.35),
             Vector3D(-6.0, 1.0, 8.0), 
             0.25
         ),
@@ -121,14 +144,14 @@ int main()
             1.0
         ),
         new Sphere( // North pole
-            Vector3D(0.9, 0.95, 1.0),
+            Vector3D(0.95, 1.0, 1.1),
             Vector3D(-4.0, 0.03, 5.0),
-            0.976
+            0.974
         ),
         new Sphere( // South pole
-            Vector3D(0.9, 0.95, 1.0),
+            Vector3D(0.95, 1.0, 1.1),
             Vector3D(-4.0, -0.035, 5.0),
-            0.975
+            0.9745
         ),
         new Sphere( // North America
             Vector3D(0.4, 1.0, 0.2),
@@ -180,29 +203,6 @@ int main()
             Vector3D(-4.125, 0.65, 4.25),
             0.025
         ),
-
-        new Triangle(
-            Vector3D(0.5, 1.0, 0.5),
-            Vector3D(2, -0.3, 1),
-            Vector3D(1.4, 0.9, 2),
-            Vector3D(4.0, 1.4, 9.9)
-        ),
-
-        new Triangle(
-            Vector3D(0.5, 1.0, 1.0),
-            Vector3D(3.0, -0.5, 1.0),
-            Vector3D(3.3, -0.9, 1.0),
-            Vector3D(3.0, -1.1, 1.0)
-        ),
-
-        new OBB(
-            Vector3D(0.5, 0.5, 1.0),
-            Vector3D(0.0, 0.0, 3.0),
-            Vector3D(1, 1, 1),
-            Vector3D(0, -1, 1),
-            Vector3D(-2, 1, 1),
-            0.6, 0.7, 0.9
-        ),
     };
     int shapeCount = sizeof(shapePtrs) / sizeof(Shape*);
 
@@ -230,10 +230,10 @@ int main()
             y = i / width;
 
         double // 0-1 clamped screen-coordinates
-            v = 1.0 - (double)y / (double)height, 
-            u = (double)x / (double)width;
+            u = (double)x / (double)width,
+            v = 1.0 - (double)y / (double)height;
 
-        Vector3D
+        Vector3D // Calculate orthographic ray
             pixPos = cam.origin + cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5)),
             pixDir = cam.fwd;
 
@@ -241,9 +241,9 @@ int main()
         Vector3D hitSurface = CastRayInScene(scene, ray);
 
         double 
-            rCol = hitSurface.GetX() * hitSurface.GetX() * 255.0, 
-            gCol = hitSurface.GetY() * hitSurface.GetY() * 255.0, 
-            bCol = hitSurface.GetZ() * hitSurface.GetZ() * 255.0;
+            rCol = hitSurface.GetX() * 255.0, 
+            gCol = hitSurface.GetY() * 255.0, 
+            bCol = hitSurface.GetZ() * 255.0;
 
         pixelBuffer[i * 3 + 0] = (uint8_t)(std::max(0.0, std::min(rCol, 255.0)));
         pixelBuffer[i * 3 + 1] = (uint8_t)(std::max(0.0, std::min(gCol, 255.0)));

@@ -40,7 +40,7 @@ bool OBB::Intersection(const Ray& ray, double& t)
 			f = axis * ray.direction; // Length of direction 
 
 		if (abs(f) > 0.000000000001)
-		{ // Ray is not orthogonal with axis
+		{ // Ray is not orthogonal to axis
 			double
 				t0 = (distAlongAxis + halfLength) / f,
 				t1 = (distAlongAxis - halfLength) / f;
@@ -54,7 +54,7 @@ bool OBB::Intersection(const Ray& ray, double& t)
 			if (max < 0.0)	return false; // OBB is behind ray
 		}
 		else if (distAlongAxis <= -halfLength || distAlongAxis >= halfLength)
-			return false; // Ray is orthogonal with axis but not located between the axis-planes
+			return false; // Ray is orthogonal to axis but not located between the axis-planes
 	}
 
 	t = (min > 0.0) ? min : max; // Return the closest positive intersection

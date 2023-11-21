@@ -9,25 +9,25 @@ Sphere::Sphere(const Vector3D& colour, const Vector3D c, double r) :
 
 bool Sphere::Intersection(const Ray& ray, double& t)
 {
-    Vector3D centerToOrigin = ray.origin - center;
-    double projectedDist = centerToOrigin * ray.direction;
+    Vector3D centerToRayOrigin = ray.origin - center; // Sphere center to ray origin
+    double projDist = centerToRayOrigin * ray.direction; // Distance from sphere to ray origin along ray direction
 
-    Vector3D pc = centerToOrigin - ray.direction * projectedDist;
-    double hitOffset = (radius*radius) - (pc*pc);
+    Vector3D centerToRayMin = centerToRayOrigin - ray.direction * projDist; // Sphere center to closest point of ray
+    double hitOffset = (radius * radius) - (centerToRayMin * centerToRayMin); // Offset of closest point of ray to sphere bounds, squared
 
     if (hitOffset < -0.000000000001)
-        return false;
+        return false; // Closest point of ray is past bounds of sphere
 
     hitOffset = sqrt(std::max(0.0, hitOffset));
 
-    double
-        t0 = -hitOffset - projectedDist,
-        t1 =  hitOffset - projectedDist;
+    double // Distance from ray to entry & exit 
+        t0 = -hitOffset - projDist,
+        t1 =  hitOffset - projDist;
 
-    if (t0 > t1)
+    if (t0 > t1) // Intersection must be closest distance
         std::swap(t0, t1);
 
-    if (t0 < 0.0)
+    if (t0 < 0.0) // Intersection must be positive
     {
         if (t1 < 0.0) return false;
         t0 = t1;
