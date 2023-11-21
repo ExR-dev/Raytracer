@@ -188,6 +188,13 @@ int main()
             Vector3D(4.0, 1.4, 9.9)
         ),
 
+        new Triangle(
+            Vector3D(0.5, 1.0, 1.0),
+            Vector3D(3.0, -0.5, 1.0),
+            Vector3D(3.3, -0.9, 1.0),
+            Vector3D(3.0, -1.1, 1.0)
+        ),
+
         new OBB(
             Vector3D(0.5, 0.5, 1.0),
             Vector3D(0.0, 0.0, 3.0),
@@ -223,8 +230,8 @@ int main()
             y = i / width;
 
         double // 0-1 clamped screen-coordinates
-            u = 1.0 - (double)y / (double)height, 
-            v = (double)x / (double)width;
+            v = 1.0 - (double)y / (double)height, 
+            u = (double)x / (double)width;
 
         Vector3D
             pixPos = cam.origin + cam.right * (viewWidth * (u - 0.5)) + cam.up * (viewHeight * (v - 0.5)),

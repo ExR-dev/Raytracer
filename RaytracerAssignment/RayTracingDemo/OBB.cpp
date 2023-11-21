@@ -28,22 +28,22 @@ bool OBB::Intersection(const Ray& ray, double& t)
 		min = -std::numeric_limits<double>::max(),
 		max = std::numeric_limits<double>::max();
 
-	Vector3D p = center - ray.origin;
+	Vector3D rayToCenter = center - ray.origin;
 
 	for (int i = 0; i < 3; i++)
 	{ // Check each axis individually
 		Vector3D axis = axes[i];
 		double halfLength = halfLengths[i];
 
-		double // Length of vectors projected onto axis
-			e = axis * p, 
-			f = axis * ray.direction;
+		double
+			distAlongAxis = axis * rayToCenter, // Distance from ray to OBB center along axis
+			f = axis * ray.direction; // Length of direction 
 
 		if (abs(f) > 0.000000000001)
 		{ // Ray is not orthogonal with axis
 			double
-				t0 = (e + halfLength) / f,
-				t1 = (e - halfLength) / f;
+				t0 = (distAlongAxis + halfLength) / f,
+				t1 = (distAlongAxis - halfLength) / f;
 
 			if (t0 > t1)	std::swap(t0, t1);
 
@@ -53,8 +53,8 @@ bool OBB::Intersection(const Ray& ray, double& t)
 			if (min > max)	return false; // Ray misses OBB
 			if (max < 0.0)	return false; // OBB is behind ray
 		}
-		else if (-e - halfLength > 0.0 || -e + halfLength < 0.0)
-			return false; // Ray is orthogonal with axis
+		else if (distAlongAxis <= -halfLength || distAlongAxis >= halfLength)
+			return false; // Ray is orthogonal with axis but not located between the axis-planes
 	}
 
 	t = (min > 0.0) ? min : max; // Return the closest positive intersection

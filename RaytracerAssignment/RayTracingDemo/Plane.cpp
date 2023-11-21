@@ -11,6 +11,7 @@ bool Plane::Intersection(const Ray & ray, double & t)
 {
     double a = normal * ray.direction;
 
+    // Backface culling
     if (a >= 0)
         return false; // Ray is orthogonal to or facing same direction as plane
 

@@ -9,32 +9,28 @@ Triangle::Triangle(const Vector3D& colour, const Vector3D& p0, const Vector3D& p
 
 bool Triangle::Intersection(const Ray& ray, double& t)
 {
-    Vector3D p0ToP1 = p1 - p0;
-    Vector3D p0ToP2 = p2 - p0;
+    Vector3D bXAxis = p1 - p0; // Barycentric axis towards p1
+    Vector3D bYAxis = p2 - p0; // Barycentric axis towards p2
 
-    // Backface culling
-    //if ((p0ToP1 ^ p0ToP2) * ray.direction >= 0.0)
-    //    return false;
+    Vector3D idealBXAxis = ray.direction ^ bYAxis; // Direction of barycentric x-axis if it is orthogonal with y-axis and ray
+    double bXAxisRatio = bXAxis * idealBXAxis; // Length of barycentric x-axis from perspective of ray
 
-    Vector3D h = ray.direction ^ p0ToP2;
-    double a = p0ToP1 * h;
+    if (abs(bXAxisRatio) < 0.000000000001)
+        return false; // Ray is parallell with triangle or triangle is infinitely thin
 
-    if (abs(a) < 0.000000000001)
+    Vector3D dirToBOrigin = ray.origin - p0;
+    double invBXAxisRatio = 1.0 / bXAxisRatio;
+    double bU = invBXAxisRatio * (dirToBOrigin * idealBXAxis);
+
+    if (bU < 0.0 || bU > 1.0)
         return false;
 
-    double f = 1.0 / a;
-    Vector3D s = ray.origin - p0;
-    double u = f * (s * h);
+    Vector3D idealBYAxis = dirToBOrigin ^ bXAxis;
+    double bV = invBXAxisRatio * (ray.direction * idealBYAxis);
 
-    if (u < 0.0 || u > 1.0)
+    if ((bV < 0.0) || (bV > 1.0 - bU))
         return false;
 
-    Vector3D q = s ^ p0ToP1;
-    double v = f * (ray.direction * q);
-
-    if ((v < 0.0) || (v > 1.0 - u))
-        return false;
-
-    t = f * (p0ToP2 * q);
+    t = invBXAxisRatio * (bYAxis * idealBYAxis);
     return (t > 0.0);
 }
