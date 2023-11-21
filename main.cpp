@@ -83,7 +83,7 @@ int main()
         randomizeSampleDir = true;
         disableLighting = false;
         perPixelSamples = 12;
-        maxBounces = 4;
+        maxBounces = 8;
     }
 
     {
@@ -99,7 +99,7 @@ int main()
             const std::string shapeName = "aabb";
 
             int iShape = 0, iMat = 0, iBounds = 0;
-            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-1.0, 2.0, -1.0));
+            /*shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-1.0, 2.0, -1.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(1.0, 4.0, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
@@ -113,7 +113,7 @@ int main()
 
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.7, 3.0, -0.65, 2.75));
-            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);*/
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
@@ -133,11 +133,11 @@ int main()
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), Normalize(Vec3(-0.5970381, 0.73607948, -0.3189553)));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.1, 1.0, 0.5, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.5, 1.0, 0.7, 0.1));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.2, 0.0, 0.0, 0.0));*/
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.2, 0.0, 0.0, 0.0));
 
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
-            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);*/
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
@@ -150,18 +150,34 @@ int main()
             const std::string shapeName = "sphere";
 
             int iShape = 0, iMat = 0, iBounds = 0;
-            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(2.0, 1.5, 2.5, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.1));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 0.0));
-
-            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(1.5, 3.5, -2.0, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.2));
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(1.5, 3.0, 0.0, 3.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.97, riGlass, 0.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, riGlass, 0.0, 0.0));
+
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(5.0, 1.0, 0.0, 1.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.5));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, riGlass, 0.0, 0.0));
+
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(12.0, 1.1, 0.0, 1.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, riGlass, 0.0, 0.0));
+
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(14.0, 1.1, 0.0, 1.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 1.0, 1.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, riGlass, 0.0, 0.0));
+
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(13.0, 1.1, 1.73205, 1.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 1.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, riGlass, 0.0, 0.0));
 
 
-            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(1.75, 2.5, 0.25, 3.5));
+            //shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(1.75, 2.5, 0.25, 3.5));
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0,0,0,100));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
@@ -175,7 +191,7 @@ int main()
             const std::string shapeName = "tri";
 
             int iShape = 0, iMat = 0, iBounds = 0;
-            {
+            /*{
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 0.0, -4.5));
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 10.0, -4.5));
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 0.0, 4.5));
@@ -191,7 +207,7 @@ int main()
                 shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
             }
 
-            /*{
+            {
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 0.0, -4.5));
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 0.0, 4.5));
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(3.5, 0.0, -4.5));
@@ -205,7 +221,7 @@ int main()
                 shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));
                 shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
                 shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
-            }*/
+            }
 
             {
                 shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-3.5, 10.0, 4.5));
@@ -241,7 +257,7 @@ int main()
 
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 5.0, 0.0, 7.7));
-            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / 3);*/
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
@@ -256,13 +272,14 @@ int main()
             int iShape = 0, iMat = 0;
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.0, -0.001, 0.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.0, 1.0, 0.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.95, 0.9, 1.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.8, 0.8, 0.8, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / 3);
         }
     }
+
 
 
     unsigned int 
@@ -274,6 +291,7 @@ int main()
         tT = clock.getElapsedTime().asSeconds();
         dT = tT - lT;
 
+        bool hasMoved = false;
 
         sf::Event event;
         while (window.pollEvent(event))
@@ -286,27 +304,31 @@ int main()
                     giveControl = !giveControl;
 
                 if (event.mouseWheelScroll.delta != 0.0f)
+                {
+                    float lFov = cam.fov;
                     cam.fov = std::clamp(cam.fov - event.mouseWheelScroll.delta, 0.01f, 179.99f);
+                    
+                    if (abs(cam.fov - lFov) > 0.000001)
+                        hasMoved = true;
+                }
             }
 
             if (event.type == sf::Event::KeyPressed)
             {
                 if (event.key.code == sf::Keyboard::L)
+                {
                     disableLighting = !disableLighting;
+                    hasMoved = true;
+                }
                 else if (event.key.code == sf::Keyboard::R)
                     randomizeSampleDir = !randomizeSampleDir;
-                else if (event.key.code == sf::Keyboard::O)
-                    cam.perspective = !cam.perspective;
                 else if (event.key.code == sf::Keyboard::C)
                 {
                     cumulativeFrameCount = 0;
                     cumulativeLighting = !cumulativeLighting;
                 }
                 else if (event.key.code == sf::Keyboard::V)
-                {
-                    cumulativeFrameCount = 0; 
-                    renderTex.clear();
-                }
+                    hasMoved = true;
             }
         }
 
@@ -318,6 +340,8 @@ int main()
             double speedMult = (double)cam.speed * dT * (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) ? 3.0 : 1.0);
             speedMult /= (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) ? 6.0 : 1.0);
 
+            Vec3 camLOrigin = cam.origin;
+            Vec3 camLFwd = cam.fwd;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
                 cam.origin += cam.fwd * speedMult;
             else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
@@ -366,6 +390,15 @@ int main()
             }
 
             cam.UpdateRotation();
+
+            if ((camLOrigin - cam.origin).MagSqr() > 0.000001 || (camLFwd - cam.fwd).MagSqr() > 0.000001)
+                hasMoved = true;
+        }
+
+        if (cumulativeLighting && hasMoved)
+        {
+            cumulativeFrameCount = 0;
+            renderTex.clear();
         }
 
 
@@ -391,11 +424,11 @@ int main()
 
             shader.setUniform("frameCount", cumulativeLighting ? (int)cumulativeFrameCount : 0);
 
-            {
+            /*{
                 double offset = (utils::RandNum() - 0.5) / 3.0;
                 shader.setUniform("aabbShapes[2]", sf::Glsl::Vec3(1.1 + offset, 3.2, -2.3));
                 shader.setUniform("aabbShapes[3]", sf::Glsl::Vec3(2.4 + offset, 3.6, -2.0));
-            }
+            }*/
         }
 
         tex.loadFromImage(img);

@@ -1,4 +1,4 @@
-#version 120
+#version 130
 #extension GL_EXT_gpu_shader4 : enable
 #extension GL_ARB_gpu_shader_fp64 : enable
 
@@ -508,7 +508,7 @@ uniform bool disableLighting;
 uniform vec4 peakCol = vec4(0.6, 0.7, 0.8, 1.0);
 uniform vec4 horizonCol = vec4(0.4, 0.6, 0.7, 1.0);
 uniform vec4 voidCol = vec4(0.01, 0.05, 0.2, 1.0);
-uniform vec3 sunCol = vec3(1.0, 0.85, 0.3);
+uniform vec3 sunCol = vec3(1.0, 0.75, 0.1);
 uniform vec3 sunDir = normalize(vec3(30, 60, 15));
 uniform float sunFlare = 512.0;
 
@@ -517,7 +517,7 @@ vec3 SampleSkybox(in vec3 rD)
 	float skyGradientT = pow(smoothstep(0.0, 0.7, rD.y), 0.8);
 	float groundToSkyT = smoothstep(-0.06, 0.0, rD.y);
 	vec3 skyGradient = Lerp(horizonCol.xyz*horizonCol.w, peakCol.xyz*peakCol.w, skyGradientT);
-	float sun = pow(max(0.0, dot(rD, sunDir)), sunFlare) * 128.0;
+	float sun = pow(max(0.0, dot(rD, sunDir)), sunFlare) * 256.0;
 	// Combine ground, sky, and sun
 	vec3 composite = Lerp(voidCol.xyz*voidCol.w, skyGradient, groundToSkyT) + sunCol * sun * float(groundToSkyT >= 1);
 	return composite;

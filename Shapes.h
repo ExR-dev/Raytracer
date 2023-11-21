@@ -106,11 +106,13 @@ struct OBB : Shape
         Shape(mat),
         center(c),
         axes{xA, yA, zA},
-        halfLengths{xA.Mag(), 0.0, 0.0}
+        halfLengths{xA.Mag(), yA.Mag(), zA.Mag() }
     {
         axes[0].Normalize();
+        axes[1].Normalize();
+        axes[2].Normalize();
 
-        if (abs(abs(axes[0].Dot(axes[1].Cross(axes[2]))) - 1.0) > utils::MINVAL)
+        /*if (abs(abs(axes[0].Dot(axes[1].Cross(axes[2]))) - 1.0) > utils::MINVAL)
         {
             std::cout << "Warning: Provided base vectors in OBB constructor are not orthogonal. Substituting with normals of x-axis.\n";
 
@@ -131,7 +133,7 @@ struct OBB : Shape
             halfLengths[2] = axes[2].Mag();
             axes[2].Normalize();
 
-        }
+        }*/
     }
 
     bool RayIntersect(const Ray& ray, Hit* hit) const override
