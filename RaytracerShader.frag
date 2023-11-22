@@ -104,6 +104,11 @@ vec4 Lerp(vec4 p0, vec4 p1, float t)
     return (1.0 - t) * p0 + t * p1;
 }
 
+vec3 ACESFilm(vec3 x)
+{
+    return clamp((x*(2.51*x + 0.03)) / (x*(2.43*x + 0.59) + 0.14), 0.0, 1.0);
+}
+
 /*=======================================================================================================*/
 /*                                                 UTILS                                                 */
 /*=======================================================================================================*/
@@ -175,7 +180,7 @@ uniform vec4 aabbBounds[AABBMAX];
 uniform int aabbBoundCoverage[AABBMAX];
 
 uniform vec3 aabbShapes[AABBMAX*2];
-uniform vec4 aabbMats[AABBMAX*3];
+uniform vec4 aabbMats[AABBMAX*4];
 
 bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -212,7 +217,7 @@ bool RayAABBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p,
     if (l == tx1)
     { 
         p.x = aabbShapes[i].x; 
-        n = vec3(-side,0,0); 
+        n = vec3(-side,0,0);
     }
     else if (l == tx2)
     { 
@@ -252,7 +257,7 @@ uniform vec4 obbBounds[OBBMAX];
 uniform int obbBoundCoverage[OBBMAX];
 
 uniform vec3 obbShapes[OBBMAX*5];
-uniform vec4 obbMats[OBBMAX*3];
+uniform vec4 obbMats[OBBMAX*4];
 
 bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -338,7 +343,7 @@ uniform vec4 sphereBounds[SPHEREMAX];
 uniform int sphereBoundCoverage[SPHEREMAX];
 
 uniform vec4 sphereShapes[SPHEREMAX*1];
-uniform vec4 sphereMats[SPHEREMAX*3];
+uniform vec4 sphereMats[SPHEREMAX*4];
 
 bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -392,7 +397,7 @@ uniform vec4 triBounds[TRIMAX];
 uniform int triBoundCoverage[TRIMAX];
 
 uniform vec3 triShapes[TRIMAX*3];
-uniform vec4 triMats[TRIMAX*3];
+uniform vec4 triMats[TRIMAX*4];
 
 bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -448,7 +453,7 @@ const int PLANEMAX = 8;
 uniform int planeCount;
 
 uniform vec3 planeShapes[PLANEMAX*2];
-uniform vec4 planeMats[PLANEMAX*3];
+uniform vec4 planeMats[PLANEMAX*4];
 
 bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
@@ -523,11 +528,36 @@ vec3 SampleSkybox(in vec3 rD)
 	return composite;
 }
 
-
-
-bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3 n, inout int s, out vec4 col, out vec4 emission, out vec4 surface)
+float FresnelReflectAmount(vec3 dir, vec3 normal, float reflectivity, float n1, float n2)
 {
-    //rO += rD * MINVAL;
+        // Schlick aproximation
+        float r0 = (n1 - n2) / (n1 + n2);
+        r0 *= r0;
+        float cosX = -dot(normal, dir);
+        if (n1 > n2)
+        {
+            float n = n1 / n2;
+            float sinT2 = (n * n) * (1.0 - cosX * cosX);
+            // Total internal reflection
+            if (sinT2 > 1.0)
+                return 1.0;
+            cosX = sqrt(1.0 - sinT2);
+        }
+        float x = 1.0 - cosX;
+        float ret = r0 + (1.0 - r0) * (x*x*x*x*x);
+ 
+        // adjust reflect multiplier for object reflectivity
+        ret = (reflectivity + (1.0 - reflectivity) * ret);
+        return ret;
+}
+
+
+
+bool GetFirstHit(
+    in vec3 rO, in vec3 rD, 
+    inout float l, inout vec3 p, inout vec3 n, inout int s, 
+    out vec4 col, out vec4 emission, out vec4 surface, out vec4 specular)
+{
     if (dot(rD, n) > 0.0)
         rO += n * MINVAL;
     else
@@ -543,6 +573,7 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
         col = vec4(0);
         emission = vec4(0,0,0,0);
         surface = vec4(0);
+        specular = vec4(0);
     }
 
     int boundsID = 0;
@@ -574,9 +605,10 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
                             n = nn;
                             s = ss;
 
-                            col = aabbMats[i*3];
-                            emission = aabbMats[i*3+1];
-                            surface = aabbMats[i*3+2];
+                            col = aabbMats[i*4];
+                            emission = aabbMats[i*4+1];
+                            surface = aabbMats[i*4+2];
+                            specular = aabbMats[i*4+3];
                             hasHit = true;
                         }
                     }
@@ -618,9 +650,10 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
                             n = nn;
                             s = ss;
 
-                            col = obbMats[i*3];
-                            emission = obbMats[i*3+1];
-                            surface = obbMats[i*3+2];
+                            col = obbMats[i*4];
+                            emission = obbMats[i*4+1];
+                            surface = obbMats[i*4+2];
+                            specular = obbMats[i*4+3];
                             hasHit = true;
                         }
                     }
@@ -659,9 +692,10 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
                             n = nn;
                             s = ss;
 
-                            col = sphereMats[i*3];
-                            emission = sphereMats[i*3+1];
-                            surface = sphereMats[i*3+2];
+                            col = sphereMats[i*4];
+                            emission = sphereMats[i*4+1];
+                            surface = sphereMats[i*4+2];
+                            specular = sphereMats[i*4+3];
                             hasHit = true;
                         }
                     }
@@ -700,9 +734,10 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
                             n = nn;
                             s = ss;
 
-                            col = triMats[i*3];
-                            emission = triMats[i*3+1];
-                            surface = triMats[i*3+2];
+                            col = triMats[i*4];
+                            emission = triMats[i*4+1];
+                            surface = triMats[i*4+2];
+                            specular = triMats[i*4+3];
                             hasHit = true;
                         }
                     }
@@ -726,9 +761,10 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
                 n = nn;
                 s = ss;
 
-                col = planeMats[i*3];
-                emission = planeMats[i*3+1];
-                surface = planeMats[i*3+2];
+                col = planeMats[i*4];
+                emission = planeMats[i*4+1];
+                surface = planeMats[i*4+2];
+                specular = planeMats[i*4+3];
                 hasHit = true;
             }
         }
@@ -738,11 +774,11 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, inout float l, inout vec3 p, inout vec3
 }
 
 
-vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri1, inout uint seed)
+vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
 {
 	vec3 incomingLight = vec3(0);
 	vec3 rayColour = vec3(1);
-
+    
     for (int i = 0; i <= maxBounces; i++)
     {
         float l = MAXVAL;
@@ -752,24 +788,37 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri1, inout uint seed)
         vec4 color = vec4(0);
         vec4 emission = vec4(0);
         vec4 surface = vec4(0);
+        vec4 specular = vec4(0);
 
-        if (GetFirstHit(rO, rD, l, p, n, s, color, emission, surface))
+        if (GetFirstHit(rO, rD, l, p, n, s, color, emission, surface, specular))
         {
-            if (disableLighting /*&& i == 1*/)
+            if (disableLighting)
                 return color.xyz * color.w + emission.xyz * emission.w;
+
+            float 
+                ri1 = ri,
+                ri2 = surface.y;
+
+            if (s < 0)
+            {
+                ri1 = ri2;
+                ri2 = ri;
+            }
                 
 			if (RandomValue(seed) > color.w)
             {
-                float ri2 = surface.y;
-                float eta = (s > 0) ? ri1/ri2 : ri2/ri1;
-
-			    rD = normalize(refract(rD, n, eta));
+			    rD = normalize(refract(rD, n, ri1/ri2));
             }
             else
             {
 			    vec3 diffuseDir = normalize(n + RandDir(seed));
 			    vec3 specularDir = reflect(rD, n);
-			    rD = normalize(Lerp(diffuseDir, specularDir, surface.x));
+                bool isSpecularBounce = specular.w >= RandomValue(seed);
+			    rD = normalize(Lerp(diffuseDir, specularDir, surface.x * float(isSpecularBounce)));
+			    //rD = normalize(Lerp(diffuseDir, specularDir, FresnelReflectAmount(rD, n, surface.x, ri1, ri2)));
+
+                if (isSpecularBounce)
+                    color.xyz = specular.xyz;
             }
             rO = p;
 
@@ -848,7 +897,8 @@ void main(void)
         outCol += Raytrace(camPos, pixDir, riAir, seed);
     outCol /= samples;
 
-    outCol = clamp(outCol, 0.0, 1.0);
+    //outCol = clamp(outCol, 0.0, 1.0);
+    outCol = ACESFilm(outCol);
 
     float avgWeight = 1.0 / (float(frameCount + 1));
     outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
