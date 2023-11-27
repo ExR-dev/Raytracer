@@ -89,6 +89,45 @@ vec2 RandomPointInCircle(inout uint state)
 	return pointOnCircle * sqrt(RandomValue(state));
 }
 
+float HaltonFloat(in uint base, in uint index)
+{
+	float result = 0.0;
+	float f = 1.0;
+	while (index > 0)
+	{
+		f = f / float(base);
+		result += f * float(index % base);
+		index = index / base; 
+        //index = int(floor(float(index) / float(base)));
+	}
+	return result;
+}
+
+vec3 HaltonVector(in uint offset)
+{
+    return vec3(HaltonFloat(2, offset), HaltonFloat(3, offset), HaltonFloat(5, offset));
+}
+
+vec3 HaltonDir(inout uint state)
+{
+    vec3 v;
+    float m = MAXVAL;
+
+    while (true)
+    {
+        do
+        {
+            v = (HaltonVector(state) - 0.5) * 2.0;
+            m = v.x*v.x + v.y*v.y + v.z*v.z;
+            state++;
+        }
+        while (m > 1.0);
+
+        if (m*m > MINVAL*2.0)
+            return v / sqrt(m);
+    }
+}
+
 float Lerp(float p0, float p1, float t)
 {
     return (1.0 - t) * p0 + t * p1;
@@ -567,7 +606,7 @@ float FresnelReflectAmount(vec3 dir, vec3 normal, float reflectivity, float n1, 
 bool GetFirstHit(
     in vec3 rO, in vec3 rD, in bool showBounds,
     inout float l, inout vec3 p, inout vec3 n, inout int s, 
-    out vec4 col, out vec4 emission, out vec4 surface, out vec4 specular, out vec4 absorption)
+    out vec4 surface, out vec4 albedo, out vec4 specular, out vec4 emission, out vec4 absorption)
 {
     if (dot(rD, n) > 0.0)
         rO += n * MINVAL;
@@ -581,10 +620,10 @@ bool GetFirstHit(
     
     if (showBounds)
     {
-        col = vec4(0);
-        emission = vec4(0);
         surface = vec4(0);
+        albedo = vec4(0);
         specular = vec4(0);
+        emission = vec4(0);
         absorption = vec4(0);
     }
 
@@ -600,8 +639,8 @@ bool GetFirstHit(
                 p = rD * l; 
                 n = -rD;
                 s = 1;
-                col *= vec4(1.0,0.85,0.85,1.0);
-                emission += vec4(0.25,0.0,0.0,0.25);
+                albedo *= vec4(1.0,0.85,0.85,1.0);
+                emission += vec4(0.35,0.0,0.0,0.35);
                 hasHit = true;
             }
             else
@@ -617,10 +656,10 @@ bool GetFirstHit(
                             n = nn;
                             s = ss;
 
-                            col = aabbMats[i*MATVALS];
-                            emission = aabbMats[i*MATVALS+1];
-                            surface = aabbMats[i*MATVALS+2];
-                            specular = aabbMats[i*MATVALS+3];
+                            surface = aabbMats[i*MATVALS+0];
+                            albedo = aabbMats[i*MATVALS+1];
+                            specular = aabbMats[i*MATVALS+2];
+                            emission = aabbMats[i*MATVALS+3];
                             absorption = aabbMats[i*MATVALS+4];
                             hasHit = true;
                         }
@@ -646,8 +685,8 @@ bool GetFirstHit(
                 p = rD * l; 
                 n = -rD;
                 s = 1;
-                col *= vec4(0.85,1.0,0.85,1.0);
-                emission += vec4(0.0,0.25,0.0,0.25);
+                albedo *= vec4(0.85,1.0,0.85,1.0);
+                emission += vec4(0.0,0.35,0.0,0.35);
                 hasHit = true;
             }
             else
@@ -663,10 +702,10 @@ bool GetFirstHit(
                             n = nn;
                             s = ss;
 
-                            col = obbMats[i*MATVALS];
-                            emission = obbMats[i*MATVALS+1];
-                            surface = obbMats[i*MATVALS+2];
-                            specular = obbMats[i*MATVALS+3];
+                            surface = obbMats[i*MATVALS+0];
+                            albedo = obbMats[i*MATVALS+1];
+                            specular = obbMats[i*MATVALS+2];
+                            emission = obbMats[i*MATVALS+3];
                             absorption = obbMats[i*MATVALS+4];
                             hasHit = true;
                         }
@@ -689,8 +728,8 @@ bool GetFirstHit(
                 p = rD * l; 
                 n = -rD;
                 s = 1;
-                col *= vec4(0.85,0.85,1.0,1.0);
-                emission += vec4(0.0,0.0,0.25,0.25);
+                albedo *= vec4(0.85,0.85,1.0,1.0);
+                emission += vec4(0.0,0.0,0.35,0.35);
                 hasHit = true;
             }
             else
@@ -706,10 +745,10 @@ bool GetFirstHit(
                             n = nn;
                             s = ss;
 
-                            col = sphereMats[i*MATVALS];
-                            emission = sphereMats[i*MATVALS+1];
-                            surface = sphereMats[i*MATVALS+2];
-                            specular = sphereMats[i*MATVALS+3];
+                            surface = sphereMats[i*MATVALS+0];
+                            albedo = sphereMats[i*MATVALS+1];
+                            specular = sphereMats[i*MATVALS+2];
+                            emission = sphereMats[i*MATVALS+3];
                             absorption = sphereMats[i*MATVALS+4];
                             hasHit = true;
                         }
@@ -732,8 +771,8 @@ bool GetFirstHit(
                 p = rD * l; 
                 n = -rD;
                 s = 1;
-                col *= vec4(1.0,1.0,1.0,1.0);
-                emission += vec4(0.15,0.15,0.15,0.25);
+                albedo *= vec4(1.0,1.0,1.0,1.0);
+                emission += vec4(0.25,0.25,0.25,0.25);
                 hasHit = true;
             }
             else
@@ -749,10 +788,10 @@ bool GetFirstHit(
                             n = nn;
                             s = ss;
 
-                            col = triMats[i*MATVALS];
-                            emission = triMats[i*MATVALS+1];
-                            surface = triMats[i*MATVALS+2];
-                            specular = triMats[i*MATVALS+3];
+                            surface = triMats[i*MATVALS+0];
+                            albedo = triMats[i*MATVALS+1];
+                            specular = triMats[i*MATVALS+2];
+                            emission = triMats[i*MATVALS+3];
                             absorption = triMats[i*MATVALS+4];
                             hasHit = true;
                         }
@@ -776,15 +815,15 @@ bool GetFirstHit(
                 p = np; 
                 n = nn;
                 s = ss;
-
-                col = planeMats[i*MATVALS];
-                emission = planeMats[i*MATVALS+1];
-                surface = planeMats[i*MATVALS+2];
-                specular = planeMats[i*MATVALS+3];
+                
+                surface = planeMats[i*MATVALS+0];
+                albedo = planeMats[i*MATVALS+1];
+                specular = planeMats[i*MATVALS+2];
+                emission = planeMats[i*MATVALS+3];
                 absorption = planeMats[i*MATVALS+4];
 
                 int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
-                col *= (tile % 2 == 0) ? 1.0 : 0.666;
+                albedo *= (tile % 2 == 0) ? 1.0 : 0.666;
                 hasHit = true;
             }
         }
@@ -807,22 +846,22 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
         vec3 p, n;
         int s;
 
-        vec4 color = vec4(0);
-        vec4 emission = vec4(0);
         vec4 surface = vec4(0);
+        vec4 albedo = vec4(0);
         vec4 specular = vec4(0);
+        vec4 emission = vec4(0);
         vec4 absorption = vec4(0);
 
-        if (GetFirstHit(rO, rD, false, l, p, n, s, color, emission, surface, specular, absorption))
+        if (GetFirstHit(rO, rD, false, l, p, n, s, surface, albedo, specular, emission, absorption))
         {
             if (disableLighting) // && i == 1
-                return color.xyz * color.w + emission.xyz * emission.w;
+                return albedo.xyz * albedo.w + emission.xyz * emission.w;
 
             rayColour *= exp(-queuedAbsorption.xyz * (l + queuedAbsorption.w));
 
             float 
                 ri1 = ri,
-                ri2 = surface.y;
+                ri2 = surface.z;
 
             if (s < 0)
             {
@@ -830,7 +869,7 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
                 ri2 = ri;
             }
                 
-			if (RandomValue(seed) > color.w)
+			if (RandomValue(seed) > albedo.w)
             {
                 bool TIR = false;
                 vec3 nrD = refract(rD, n, ri1/ri2);
@@ -862,18 +901,17 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
 			    vec3 diffuseDir = normalize(n + RandDir(seed));
 			    vec3 specularDir = reflect(rD, n);
                 bool isSpecularBounce = specular.w >= RandomValue(seed);
-			    rD = normalize(Lerp(diffuseDir, specularDir, surface.x * float(isSpecularBounce)));
-			    //rD = normalize(Lerp(diffuseDir, specularDir, FresnelReflectAmount(rD, n, surface.x, ri1, ri2)));
+			    rD = normalize(Lerp(diffuseDir, specularDir, isSpecularBounce ? surface.y : surface.x));
 
                 if (isSpecularBounce)
-                    color.xyz = specular.xyz;
+                    albedo.xyz = specular.xyz;
             }
             rO = p;
 
 			// Update light calculations
 			vec3 emittedLight = emission.xyz * emission.w;
 			incomingLight += emittedLight * rayColour;
-			rayColour *= color.xyz;
+			rayColour *= albedo.xyz;
 						
 			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
 			if (RandomValue(seed) >= k)
@@ -885,10 +923,10 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             if (disableLighting)
                 return vec3(0);
 
-            vec3 skyLight = SampleSkybox(rD);
+            /*vec3 skyLight = SampleSkybox(rD);
 			incomingLight += skyLight * rayColour;
 			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
-			rayColour *= 1.0 / k; 
+			rayColour *= 1.0 / k; */
             break; 
         }
     }
@@ -959,9 +997,9 @@ void main(void)
     {
         float l, s;
         vec3 p, n;
-        vec4 color, emission, surface, specular, absorption;
-        if (GetFirstHit(camPos, pixDir, true, l, p, n, s, color, emission, surface, specular, absorption))
-            gl_FragColor.xyz += color.xyz * color.w + emission.xyz * emission.w;
+        vec4 albedo, emission, surface, specular, absorption;
+        if (GetFirstHit(camPos, pixDir, true, l, p, n, s, surface, albedo, specular, emission, absorption))
+            gl_FragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
     }
 }
 
