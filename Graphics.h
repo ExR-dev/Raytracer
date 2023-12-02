@@ -25,6 +25,9 @@ struct Color
     Color(const Vec3& v) :
         r((double)v.x), g((double)v.y), b((double)v.z)
     {}
+    Color(const sf::Color& c) :
+        r(((double)c.r) / 255.0), g(((double)c.g) / 255.0), b(((double)c.b) / 255.0)
+    {}
 
 
     operator Vec3() const

@@ -47,16 +47,23 @@ int main()
         scaleW = (double)sW / (double)w,
         scaleH = (double)sH / (double)h;
 
+    Color* render = new Color[dim];
+    for (int i = 0; i < dim; i++)
+        render[i] = Color();
 
-    sf::Image img;
+
+    sf::Image renderImg;
+    sf::Image displayImg;
     sf::Texture tex;
+    sf::Texture displayTex;
     sf::RenderTexture renderTex;
-    sf::Sprite sprite, drawSprite;
+    sf::Sprite sprite, displaySprite;
     sf::Shader shader;
 
-    img.create(w, h, sf::Color::Black);
+    renderImg.create(w, h, sf::Color::Black);
+    displayImg.create(w, h, sf::Color::Black);
     renderTex.create(w, h);
-    drawSprite.setScale((float)scaleW, (float)scaleH);
+    displaySprite.setScale((float)scaleW, (float)scaleH);
     shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment);
 
 
@@ -69,7 +76,7 @@ int main()
     fixed.y /= 2;
 
 
-    bool cumulativeLighting, randomizeSampleDir, giveControl, disableLighting, viewBounds;
+    bool cumulativeLighting, realRender, randomizeSampleDir, giveControl, disableLighting, viewBounds;
     unsigned int perPixelSamples, maxBounces;
 
     {
@@ -77,6 +84,7 @@ int main()
         cam.fov = 32.65f;
 
         cumulativeLighting = true;
+        realRender = true;
         randomizeSampleDir = true;
         disableLighting = false;
         viewBounds = false;
@@ -127,7 +135,6 @@ int main()
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.7, 3.0, -0.65, 2.75));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / matLen);*/
 
-
             /*
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(5.0, 0.0, -7.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(7.0, 2.5, -6.0));
@@ -145,8 +152,8 @@ int main()
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.7, 0.2, -0.8));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(2.3, 1.8, 0.8));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, riGlass, 0.0)); // Surface
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.05, 0.05, 1.0, 0.1));  // Albedo
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.7, 0.7, 1.0, 1.0));  // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 0.15));  // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.75, 0.75, 1.0, 0.15));  // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
@@ -264,7 +271,6 @@ int main()
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(13.00456, 1.2383, 0.59414, 2.185));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 3);*/
 
-
             /*shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(12.0, 12.5, 7.0, 6.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0)); // Albedo
@@ -275,7 +281,6 @@ int main()
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(12.0, 12.5, 7.0, 6.0));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 1);*/
 
-
             /*shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(2.5, 1.5, -7.0, 1.5));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, riAir, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.25));  // Albedo
@@ -284,12 +289,11 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 0.333, 0.0)); // Absorption
             */
 
-
             // Blender Comparison
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(-1.5, 1.0, 0.0, 1.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, riGlass, 0.0)); // Surface
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.05, 0.05, 0.1));  // Albedo
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.7, 0.7, 1.0));  // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 0.15));  // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.75, 0.75, 0.15));  // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
@@ -301,7 +305,7 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));  // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Specular
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 150.0));  // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 350.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 3.0, 3.0, 1.1));
@@ -439,10 +443,10 @@ int main()
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.0, 0.0, 0.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.0, 1.0, 0.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 1.0, 1.0, 0.0)); // Surface
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));  // Albedo
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.1));  // Specular
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0)); // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.03)); // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Absorption
             // Blender Comparison
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / matLen);
@@ -499,6 +503,12 @@ int main()
                 {
                     cumulativeFrameCount = 0;
                     cumulativeLighting = !cumulativeLighting;
+                }
+                else if (event.key.code == sf::Keyboard::E)
+                {
+                    realRender = !realRender;
+                    cumulativeFrameCount = 0;
+                    hasMoved = true;
                 }
                 else if (event.key.code == sf::Keyboard::V)
                     hasMoved = true;
@@ -572,6 +582,27 @@ int main()
         {
             cumulativeFrameCount = 0;
             renderTex.clear();
+            for (int i = 0; i < dim; i++)
+                render[i] = Color();
+        }
+
+        if (realRender && cumulativeFrameCount > 0)
+        {
+            for (int i = 0; i < dim; i++)
+            {
+                unsigned int
+                    x = i % w,
+                    y = i / w;
+
+                Color pix = renderImg.getPixel(x, y);
+                render[i] += pix;
+
+                displayImg.setPixel(x, y, {
+                    (uint8_t)(render[i].r * 255.0 / cumulativeFrameCount),
+                    (uint8_t)(render[i].g * 255.0 / cumulativeFrameCount),
+                    (uint8_t)(render[i].b * 255.0 / cumulativeFrameCount)
+                });
+            }
         }
 
 
@@ -591,33 +622,39 @@ int main()
             shader.setUniform("camRight", cam.right.ToShader());
 
             shader.setUniform("viewBounds", viewBounds);
+            shader.setUniform("realRender", realRender);
             shader.setUniform("disableLighting", disableLighting);
             shader.setUniform("randomizeDir", randomizeSampleDir);
 
             shader.setUniform("frameCount", cumulativeLighting ? (int)cumulativeFrameCount : 0);
-
-            /*{
-                double offset = (utils::RandNum() - 0.5) / 3.0;
-                shader.setUniform("aabbShapes[2]", sf::Glsl::Vec3(1.1 + offset, 3.2, -2.3));
-                shader.setUniform("aabbShapes[3]", sf::Glsl::Vec3(2.4 + offset, 3.6, -2.0));
-            }*/
         }
 
-        tex.loadFromImage(img);
+        tex.loadFromImage(renderImg);
         sprite.setTexture(tex);
 
         shader.setUniform("lastFrame", renderTex.getTexture());
 
         renderTex.draw(sprite, &shader);
         renderTex.display();
-        drawSprite.setTexture(renderTex.getTexture());
 
+        if (realRender)
+        {
+            renderImg = renderTex.getTexture().copyToImage();
+
+            displayTex.loadFromImage(displayImg);
+            displaySprite.setTexture(displayTex);
+        }
+        else
+            displaySprite.setTexture(renderTex.getTexture());
+        
         window.clear();
-        window.draw(drawSprite);
+        window.draw(displaySprite);
         window.display();
 
         cumulativeFrameCount++;
         totFrames++;
     }
+
+    delete[] render;
     return 0;
 }

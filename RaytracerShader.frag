@@ -958,8 +958,8 @@ uniform sampler2D lastFrame;
 uniform int frameCount;
 uniform int samples;
 
+uniform bool realRender;
 uniform bool randomizeDir;
-uniform int iii;
 
 
 void main(void)
@@ -973,8 +973,8 @@ void main(void)
 
     if (randomizeDir)
     {
-        uv.y += ((RandomValue(seed) - 0.5) / 1.5) / float(imgH);
-        uv.x += ((RandomValue(seed) - 0.5) / 1.5) / float(imgW);
+        uv.y += ((RandomValue(seed) - 0.5) / 1.25) / float(imgH);
+        uv.x += ((RandomValue(seed) - 0.5) / 1.25) / float(imgW);
     }
     
     vec3 botLeftLocal = vec3(-viewWidth / 2.0, -viewHeight / 2.0, 1.0);
@@ -986,13 +986,14 @@ void main(void)
         outCol += Raytrace(camPos, pixDir, riAir, seed);
     outCol /= samples;
 
-    //outCol *= 0.75;
-
     //outCol = clamp(outCol, 0.0, 1.0);
-    outCol = ACESFilm(outCol);
+        outCol = ACESFilm(outCol);
 
-    float avgWeight = 1.0 / (float(frameCount + 1));
-    outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
+    if (!realRender)
+    {
+        float avgWeight = 1.0 / (float(frameCount + 1));
+        outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
+    }
     gl_FragColor = vec4(outCol, 1);
 
     if (viewBounds)
