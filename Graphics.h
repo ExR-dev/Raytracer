@@ -203,6 +203,16 @@ struct Color
     }
 
 
+    inline Color ACESFilm() const
+    {
+        return {
+            std::max(0.0, std::min((r*(2.51*r + 0.03)) / (r*(2.43*r + 0.59) + 0.14), 1.0)),
+            std::max(0.0, std::min((g*(2.51*g + 0.03)) / (g*(2.43*g + 0.59) + 0.14), 1.0)),
+            std::max(0.0, std::min((b*(2.51*b + 0.03)) / (b*(2.43*b + 0.59) + 0.14), 1.0))
+        };
+    }
+
+
     Vec3 ToHSV() const
     {
         Vec3 out;

@@ -568,7 +568,7 @@ uniform vec3 sunDir = normalize(vec3(40, 50, 20));
 uniform float sunFlare = 512.0;
 
 vec3 SampleSkybox(in vec3 rD)
-{				
+{
 	float skyGradientT = pow(smoothstep(0.0, 0.7, rD.y), 0.8);
 	float groundToSkyT = smoothstep(-0.06, 0.0, rD.y);
 	vec3 skyGradient = Lerp(horizonCol, peakCol, skyGradientT);
@@ -578,7 +578,7 @@ vec3 SampleSkybox(in vec3 rD)
 	return composite;
 }
 
-float FresnelReflectAmount(vec3 dir, vec3 normal, float reflectivity, float n1, float n2)
+vec2 FresnelReflectAmount(vec3 dir, vec3 normal, vec2 reflectivity, float n1, float n2)
 {
         // Schlick aproximation
         float r0 = (n1 - n2) / (n1 + n2);
@@ -590,11 +590,11 @@ float FresnelReflectAmount(vec3 dir, vec3 normal, float reflectivity, float n1, 
             float sinT2 = (n * n) * (1.0 - cosX * cosX);
             // Total internal reflection
             if (sinT2 > 1.0)
-                return 1.0;
+                return vec2(1.0);
             cosX = sqrt(1.0 - sinT2);
         }
         float x = 1.0 - cosX;
-        float ret = r0 + (1.0 - r0) * (x*x*x*x*x);
+        vec2 ret = vec2(r0 + (1.0 - r0) * (x*x*x*x*x));
  
         // adjust reflect multiplier for object reflectivity
         ret = (reflectivity + (1.0 - reflectivity) * ret);
@@ -868,7 +868,14 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
                 ri1 = ri2;
                 ri2 = ri;
             }
-                
+            
+            vec2 fresnelReflection = FresnelReflectAmount(rD, n, surface.xy, ri1, ri2);
+
+            /*bvec2 isReflection = bvec2(
+                RandomValue(seed) > fresnelReflection.x, 
+                RandomValue(seed) > fresnelReflection.y
+            );*/
+
 			if (RandomValue(seed) > albedo.w)
             {
                 bool TIR = false;
@@ -901,7 +908,7 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
 			    vec3 diffuseDir = normalize(n + RandDir(seed));
 			    vec3 specularDir = reflect(rD, n);
                 bool isSpecularBounce = specular.w >= RandomValue(seed);
-			    rD = normalize(Lerp(diffuseDir, specularDir, isSpecularBounce ? surface.y : surface.x));
+			    rD = normalize(Lerp(diffuseDir, specularDir, isSpecularBounce ? surface.y * fresnelReflection.y : surface.x * fresnelReflection.x));
 
                 if (isSpecularBounce)
                     albedo.xyz = specular.xyz;
@@ -986,15 +993,19 @@ void main(void)
         outCol += Raytrace(camPos, pixDir, riAir, seed);
     outCol /= samples;
 
-    //outCol = clamp(outCol, 0.0, 1.0);
-        outCol = ACESFilm(outCol);
+    outCol = ACESFilm(outCol);
 
-    if (!realRender)
+    if (realRender)
+    {
+        gl_FragColor = vec4(outCol, 1.0);
+    }
+    else
     {
         float avgWeight = 1.0 / (float(frameCount + 1));
         outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
+        gl_FragColor = vec4(outCol, 1);
+
     }
-    gl_FragColor = vec4(outCol, 1);
 
     if (viewBounds)
     {

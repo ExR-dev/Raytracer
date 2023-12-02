@@ -29,8 +29,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ /*960,*/ /*1280,*/ 1920,
-        h = /*45,*/ /*90, */ /*180,*/ /*360,*/ /*540,*/ /*720, */ 1080,
+        w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ 960, /*1280,*/ /*1920,*/
+        h = /*45,*/ /*90, */ /*180,*/ /*360,*/ 540, /*720, */ /*1080,*/
         dim = w * h;
 
     sf::RenderWindow window(
@@ -88,7 +88,7 @@ int main()
         randomizeSampleDir = true;
         disableLighting = false;
         viewBounds = false;
-        perPixelSamples = 32;
+        perPixelSamples = 16;
         maxBounces = 8;
     }
 
@@ -151,11 +151,11 @@ int main()
             // Blender Comparison
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.7, 0.2, -0.8));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(2.3, 1.8, 0.8));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, riGlass, 0.0)); // Surface
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 0.15));  // Albedo
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.75, 0.75, 1.0, 0.15));  // Specular
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, riAir, 0.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.15));  // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 1.0));  // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.2, 0.0, 0.0, 0.5));  // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(2.25, 2.25, 0.0, 0.0));  // Absorption
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(1.5, 1.0, 0.0, 2.5));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / matLen);
@@ -291,11 +291,11 @@ int main()
 
             // Blender Comparison
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(-1.5, 1.0, 0.0, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, riGlass, 0.0)); // Surface
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 0.15));  // Albedo
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.75, 0.75, 0.15));  // Specular
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, riDiamond, 0.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.15));  // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 1.0));  // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.2, 0.5));  // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 2.25, 2.25, 0.0));  // Absorption
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(-1.5, 1.0, 0.0, 1.1));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / matLen);
@@ -305,7 +305,7 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));  // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Specular
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 350.0));  // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 100.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 3.0, 3.0, 1.1));
@@ -582,8 +582,13 @@ int main()
         {
             cumulativeFrameCount = 0;
             renderTex.clear();
-            for (int i = 0; i < dim; i++)
-                render[i] = Color();
+
+            if (realRender)
+                for (int i = 0; i < dim; i++)
+                {
+                    render[i] = Color();
+                    renderImg.setPixel(i%w, i/w, { 0, 0, 0 });
+                }
         }
 
         if (realRender && cumulativeFrameCount > 0)
@@ -594,13 +599,24 @@ int main()
                     x = i % w,
                     y = i / w;
 
+                double colorsCaptured = (double)cumulativeFrameCount;
+
                 Color pix = renderImg.getPixel(x, y);
-                render[i] += pix;
+
+                if (cumulativeLighting)
+                    render[i] = render[i] + pix;
+                else
+                {
+                    render[i] = pix;
+                    colorsCaptured = 1.0;
+                }
+
+                Color displayCol = render[i] / colorsCaptured;
 
                 displayImg.setPixel(x, y, {
-                    (uint8_t)(render[i].r * 255.0 / cumulativeFrameCount),
-                    (uint8_t)(render[i].g * 255.0 / cumulativeFrameCount),
-                    (uint8_t)(render[i].b * 255.0 / cumulativeFrameCount)
+                    (uint8_t)(displayCol.r * 255.0),
+                    (uint8_t)(displayCol.g * 255.0),
+                    (uint8_t)(displayCol.b * 255.0)
                 });
             }
         }
