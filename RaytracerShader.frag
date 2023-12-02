@@ -1,4 +1,4 @@
-#version 130
+#version 120
 #extension GL_EXT_gpu_shader4 : enable
 #extension GL_ARB_gpu_shader_fp64 : enable
 
@@ -560,21 +560,21 @@ uniform bool viewBounds;
 
 
 
-uniform vec4 peakCol = vec4(0.6, 0.7, 0.8, 1.0);
-uniform vec4 horizonCol = vec4(0.4, 0.6, 0.7, 1.0);
-uniform vec4 voidCol = vec4(0.01, 0.05, 0.2, 1.0);
-uniform vec3 sunCol = vec3(1.0, 0.95, 0.2);
-uniform vec3 sunDir = normalize(vec3(30, 60, 15));
+uniform vec3 peakCol = vec3(0.75, 0.9, 1.0) * 0.95;
+uniform vec3 horizonCol = vec3(0.5, 0.65, 1.0) * 0.85;
+uniform vec3 voidCol = vec3(0.1, 0.5, 1.0) * 0.1;
+uniform vec3 sunCol = vec3(1.0, 0.9, 0.1) * 512.0;
+uniform vec3 sunDir = normalize(vec3(40, 50, 20));
 uniform float sunFlare = 512.0;
 
 vec3 SampleSkybox(in vec3 rD)
 {				
 	float skyGradientT = pow(smoothstep(0.0, 0.7, rD.y), 0.8);
 	float groundToSkyT = smoothstep(-0.06, 0.0, rD.y);
-	vec3 skyGradient = Lerp(horizonCol.xyz*horizonCol.w, peakCol.xyz*peakCol.w, skyGradientT);
-	float sun = pow(max(0.0, dot(rD, sunDir)), sunFlare) * 256.0;
+	vec3 skyGradient = Lerp(horizonCol, peakCol, skyGradientT);
+	float sun = pow(max(0.0, dot(rD, sunDir)), sunFlare);
 	// Combine ground, sky, and sun
-	vec3 composite = Lerp(voidCol.xyz*voidCol.w, skyGradient, groundToSkyT) + sunCol * sun * float(groundToSkyT >= 1);
+	vec3 composite = Lerp(voidCol, skyGradient, groundToSkyT) + sunCol * sun * float(groundToSkyT >= 1);
 	return composite;
 }
 
@@ -822,8 +822,8 @@ bool GetFirstHit(
                 emission = planeMats[i*MATVALS+3];
                 absorption = planeMats[i*MATVALS+4];
 
-                int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
-                albedo *= (tile % 2 == 0) ? 1.0 : 0.666;
+                //int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
+                //albedo *= (tile % 2 == 0) ? 1.0 : 0.666;
                 hasHit = true;
             }
         }
@@ -926,8 +926,8 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             /*vec3 skyLight = SampleSkybox(rD);
 			incomingLight += skyLight * rayColour;
 			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
-			rayColour *= 1.0 / k; */
-            break; 
+			rayColour *= 1.0 / k; 
+            break; */
         }
     }
 
@@ -985,6 +985,8 @@ void main(void)
     for (int i = 0; i < samples; i++)
         outCol += Raytrace(camPos, pixDir, riAir, seed);
     outCol /= samples;
+
+    //outCol *= 0.75;
 
     //outCol = clamp(outCol, 0.0, 1.0);
     outCol = ACESFilm(outCol);
