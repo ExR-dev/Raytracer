@@ -46,7 +46,7 @@ bool OBB::Intersection(const Ray& ray, double& t)
 				t1 = (distAlongAxis - halfLength) / f;
 
 			if (t0 > t1)	std::swap(t0, t1);
-
+			
 			if (t0 > min)	min = t0; // Keep the longer entry-point
 			if (t1 < max)	max = t1; // Keep the shorter exit-point
 

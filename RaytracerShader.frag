@@ -311,59 +311,66 @@ uniform vec4 obbMats[OBBMAX*MATVALS];
 bool RayOBBIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     i *= 5;
-    float
+    float // Distances to entry & exit.
         minV = -MAXVAL, 
         maxV = MAXVAL;
 
     vec3
-        pl = obbShapes[i] - rO,
+        rayToCenter = obbShapes[i] - rO,
         nMin = vec3(0),
         nMax = vec3(0);
 
-    for (int j = 0; j < 3; j++)
-    {
-        vec3 axis = obbShapes[i+2+j];
-        float halfLength = obbShapes[i+1][j];
+    for (int a = 0; a < 3; a++)
+    { // Check each axis individually.
+        vec3 axis = obbShapes[i+2+a];
+        float halfLength = obbShapes[i+1][a];
 
-        float e = dot(axis, pl);
-        float f = dot(axis, rD);
+        float 
+            distAlongAxis = dot(axis, rayToCenter), // Distance from ray to OBB center along axis.
+            f = dot(axis, rD); // Length of direction.
 
         if (abs(f) > MINVAL)
-        {
-            vec3 tnMin = axis;
-            vec3 tnMax = axis * -1.0;
+        { // Ray is not orthogonal to axis.
+            vec3 
+                tnMin = axis,
+                tnMax = axis * -1.0;
 
             float
-                t0 = (e + halfLength) / f,
-                t1 = (e - halfLength) / f;
+                t0 = (distAlongAxis + halfLength) / f,
+                t1 = (distAlongAxis - halfLength) / f;
 
             if (t0 > t1)
-            {
+            { // Flip intersection order.
                 float temp = t0;
                 t0 = t1;
                 t1 = temp;
+
                 tnMin = tnMax;
                 tnMax = axis;
             }
 
             if (t0 > minV)
-            {
+            { // Keep the longer entry-point.
                 minV = t0;
                 nMin = tnMin;
             }
             if (t1 < maxV)
-            {
+            { // Keep the shorter exit-point.
                 maxV = t1;
                 nMax = tnMax;
             }
             
-            if (minV > maxV)	return false;
-            if (maxV < 0.0)	    return false;
+            if (minV > maxV)	return false; // Ray misses OBB.
+            if (maxV < 0.0)	    return false; // OBB is behind ray.
         }
-        else if (-e - halfLength > 0.0 || -e + halfLength < 0.0)
+        else if (-distAlongAxis - halfLength > 0.0 
+              || -distAlongAxis + halfLength < 0.0)
+        { // Ray is orthogonal to axis but not located between the axis-planes.
             return false;
+        }
     }
 
+    // Find the closest positive intersection.
     if (minV > 0.0)
     {
         l = minV;
