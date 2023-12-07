@@ -555,9 +555,9 @@ uniform bool viewBounds;
 
 
 
-uniform vec3 peakCol = vec3(0.75, 0.9, 1.0) * 0.95;
-uniform vec3 horizonCol = vec3(0.5, 0.65, 1.0) * 0.85;
-uniform vec3 voidCol = vec3(0.1, 0.5, 1.0) * 0.1;
+uniform vec3 peakCol = vec3(0.75, 0.9, 1.0) * 0.95 * 0.1;
+uniform vec3 horizonCol = vec3(0.5, 0.65, 1.0) * 0.85 * 0.1;
+uniform vec3 voidCol = vec3(0.1, 0.5, 1.0) * 0.1 * 0.1;
 uniform vec3 sunCol = vec3(1.0, 0.9, 0.1) * 512.0;
 uniform vec3 sunDir = normalize(vec3(40, 50, 20));
 uniform float sunFlare = 512.0;
@@ -817,8 +817,8 @@ bool GetFirstHit(
                 emission = planeMats[i*MATVALS+3];
                 absorption = planeMats[i*MATVALS+4];
 
-                //int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
-                //albedo *= (tile % 2 == 0) ? 1.0 : 0.666;
+                int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
+                albedo *= (tile % 2 == 0) ? 1.0 : 0.666;
                 hasHit = true;
             }
         }
@@ -828,7 +828,89 @@ bool GetFirstHit(
 }
 
 
+// Testing: Got fresnel reflectance working.
 vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
+{
+	vec3 incomingLight = vec3(0);
+	vec3 rayColour = vec3(1);
+
+	//vec4 queuedAbsorption = vec4(0);
+
+    for (int i = 0; i <= maxBounces; i++)
+    {
+        float l = MAXVAL;
+        vec3 p, n;
+        int s;
+
+        vec4 surface = vec4(0);
+        vec4 albedo = vec4(0);
+        vec4 specular = vec4(0);
+        vec4 emission = vec4(0);
+        vec4 absorption = vec4(0);
+
+        if (GetFirstHit(rO, rD, false, l, p, n, s, surface, albedo, specular, emission, absorption))
+        {
+            if (disableLighting && i == 1) 
+                return albedo.xyz * albedo.w + emission.xyz * emission.w;
+
+            float 
+                ri1 = ri,
+                ri2 = surface.z;
+
+            if (s < 0)
+            {
+                ri1 = ri2;
+                ri2 = ri;
+            }
+            
+            float fresnelReflection = FresnelReflectAmount(rD, n, surface.xy, ri1, ri2).x;
+            fresnelReflection = pow(fresnelReflection, surface.w);
+            float fresnelRefraction = 1.0 - fresnelReflection;
+
+            if (RandomValue(seed) > fresnelReflection)
+            {
+			    vec3 diffuseDir = normalize(n + RandDir(seed));
+			    rD = diffuseDir;    
+                
+                // Update light calculations
+			    vec3 emittedLight = emission.xyz * emission.w;
+			    incomingLight += emittedLight * rayColour;
+			    rayColour *= albedo.xyz;
+            }
+            else
+            {
+			    vec3 reflectDir = reflect(rD, n);
+			    rD = reflectDir;
+
+			    // Update light calculations
+			    vec3 emittedLight = emission.xyz * emission.w;
+			    incomingLight += emittedLight * rayColour;
+            }
+            rO = p;
+            
+						
+			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
+			if (RandomValue(seed) >= k)
+				break;
+			rayColour *= 1.0 / k; 
+        }
+        else
+        { // Ambient
+            if (disableLighting)
+                return vec3(0);
+
+            vec3 skyLight = SampleSkybox(rD);
+			incomingLight += skyLight * rayColour;
+			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
+			rayColour *= 1.0 / k; 
+            break;
+        }
+    }
+
+    return incomingLight;
+}
+
+/*vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
 {
 	vec3 incomingLight = vec3(0);
 	vec3 rayColour = vec3(1);
@@ -866,10 +948,6 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             
             vec2 fresnelReflection = FresnelReflectAmount(rD, n, surface.xy, ri1, ri2);
 
-            /*bvec2 isReflection = bvec2(
-                RandomValue(seed) > fresnelReflection.x, 
-                RandomValue(seed) > fresnelReflection.y
-            );*/
 
 			if (RandomValue(seed) > albedo.w)
             {
@@ -925,16 +1003,16 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             if (disableLighting)
                 return vec3(0);
 
-            /*vec3 skyLight = SampleSkybox(rD);
+            vec3 skyLight = SampleSkybox(rD);
 			incomingLight += skyLight * rayColour;
 			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
 			rayColour *= 1.0 / k; 
-            break;*/
+            break;
         }
     }
 
     return incomingLight;
-}
+}*/
 
 /*=======================================================================================================*/
 /*                                               RENDERING                                               */
