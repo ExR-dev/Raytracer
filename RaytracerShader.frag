@@ -1,15 +1,6 @@
-#version 120
-#extension GL_EXT_gpu_shader4 : enable
-#extension GL_ARB_gpu_shader_fp64 : enable
-
-
-
-
-
-
-
-
-
+#version 130
+//#extension GL_EXT_gpu_shader4 : enable
+//#extension GL_ARB_gpu_shader_fp64 : enable
 
 
 
@@ -32,12 +23,10 @@ uniform int imgW;
 uniform int imgH;
 
 
-uniform int rndSeed;
-
 uint NextRandom(inout uint state)
 {
-    state = state * 747796405 + 2891336453;
-	uint result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
+    state = state * 747796405u + 2891336453u;
+	uint result = ((state >> ((state >> 28) + 4u)) ^ state) * 277803737u;
 	result = (result >> 22) ^ result;
 	return result;
 }
@@ -93,19 +82,18 @@ float HaltonFloat(in uint base, in uint index)
 {
 	float result = 0.0;
 	float f = 1.0;
-	while (index > 0)
+	while (index > 0u)
 	{
 		f = f / float(base);
 		result += f * float(index % base);
-		index = index / base; 
-        //index = int(floor(float(index) / float(base)));
+		index = index / base;
 	}
 	return result;
 }
 
 vec3 HaltonVector(in uint offset)
 {
-    return vec3(HaltonFloat(2, offset), HaltonFloat(3, offset), HaltonFloat(5, offset));
+    return vec3(HaltonFloat(2u, offset), HaltonFloat(3u, offset), HaltonFloat(5u, offset));
 }
 
 vec3 HaltonDir(inout uint state)
@@ -941,7 +929,7 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
 			incomingLight += skyLight * rayColour;
 			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
 			rayColour *= 1.0 / k; 
-            break; */
+            break;*/
         }
     }
 
@@ -975,6 +963,8 @@ uniform int samples;
 uniform bool realRender;
 uniform bool randomizeDir;
 
+uniform int rndSeed;
+
 
 void main(void)
 {
@@ -982,7 +972,7 @@ void main(void)
     vec3 lFrame = texture2D(lastFrame, uv).xyz;
     vec3 outCol = vec3(0);
     
-    uint rndS = (rndSeed + 2147483647);
+    uint rndS = uint(rndSeed + 2147483647);
     uint seed = rndS + uint(uv.x * imgW) + uint(uv.y * imgW * imgH);
 
     if (randomizeDir)
@@ -1022,6 +1012,7 @@ void main(void)
         if (GetFirstHit(camPos, pixDir, true, l, p, n, s, surface, albedo, specular, emission, absorption))
             gl_FragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
     }
+
 }
 
 /*=======================================================================================================*/

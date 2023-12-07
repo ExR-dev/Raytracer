@@ -1,9 +1,7 @@
 
 #include "Utils.h"
 #include "Vec3.h"
-#include "Phys.h"
 #include "Graphics.h"
-#include "Scene.h"
 
 #include <SFML/Graphics/Shader.hpp>
 #include <SFML/Graphics.hpp>
@@ -12,6 +10,34 @@
 #include <format>
 
 
+struct Cam
+{
+    float fov;
+    bool perspective;
+    float speed;
+
+    Vec3
+        origin,
+        fwd, right, up;
+
+
+    Cam(float fov, bool perspective, float speed, const Vec3& origin, const Vec3& fwd) :
+        fov(fov), perspective(perspective), speed(speed), origin(origin), fwd(fwd)
+    {
+        UpdateRotation();
+    }
+
+    void UpdateRotation()
+    {
+        fwd.Normalize();
+
+        right = fwd.Cross({ 0, -1, 0 });
+        right.Normalize();
+
+        up = fwd.Cross(right);
+        up.Normalize();
+    }
+};
 
 
 int main()
@@ -29,8 +55,8 @@ int main()
 
     // Render Scene
     const unsigned int 
-        w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ 960, /*1280,*/ /*1920,*/
-        h = /*45,*/ /*90, */ /*180,*/ /*360,*/ 540, /*720, */ /*1080,*/
+        w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ /*960,*/ 1280, /*1920,*/
+        h = /*45,*/ /*90, */ /*180,*/ /*360,*/ /*540,*/ 720,  /*1080,*/
         dim = w * h;
 
     sf::RenderWindow window(
@@ -473,7 +499,10 @@ int main()
             else if (event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::MouseWheelScrolled)
             {
                 if (event.mouseButton.button == 1)
+                {
                     giveControl = !giveControl;
+                    hasMoved = true;
+                }
 
                 if (event.mouseWheelScroll.delta != 0.0f)
                 {
@@ -503,6 +532,7 @@ int main()
                 {
                     cumulativeFrameCount = 0;
                     cumulativeLighting = !cumulativeLighting;
+                    hasMoved = true;
                 }
                 else if (event.key.code == sf::Keyboard::E)
                 {
@@ -661,7 +691,9 @@ int main()
             displaySprite.setTexture(displayTex);
         }
         else
+        {
             displaySprite.setTexture(renderTex.getTexture());
+        }
         
         window.clear();
         window.draw(displaySprite);

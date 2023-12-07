@@ -141,10 +141,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics.h" />
-    <ClInclude Include="Lights.h" />
-    <ClInclude Include="Phys.h" />
-    <ClInclude Include="Scene.h" />
-    <ClInclude Include="Shapes.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Vec3.h" />
   </ItemGroup>

@@ -3,11 +3,8 @@
 #include "Utils.h"
 
 #include <cmath>
-#include <random>
 
 #include "SFML/Graphics/Shader.hpp"
-
-#include <SFML/Graphics.hpp>
 
 
 struct Vec3
@@ -226,6 +223,7 @@ inline Vec3 RandDir()
 }
 
 
+/*
 sf::Glsl::Vec3 Normalize(sf::Glsl::Vec3 v)
 {
     Vec3 t = Vec3(v.x, v.y, v.z);
@@ -237,3 +235,4 @@ sf::Glsl::Vec3 Normalize(Vec3 v)
     v.Normalize();
     return sf::Glsl::Vec3(v.x, v.y, v.z);
 }
+*/
