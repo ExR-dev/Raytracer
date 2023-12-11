@@ -503,6 +503,37 @@ int main()
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / matLen);
         }
+        
+        // Pyramids (MAX 8)
+        {
+            // Shape:   
+            //      vec3(origin x3), vec3(axis1 x3), vec3(axis2 x3), vec3(axis3 x3)
+            // Mat:     
+            //      vec4(albedo reflectivity x1, specular reflectivity x1, reflective index x1, unused x1), 
+            //      vec4(albedo x3, opacity x1), 
+            //      vec4(specular x3, opacity x1), 
+            //      vec4(emission x3, opacity x1), 
+            //      vec4(absorption x3, offset x1)
+
+            const std::string shapeName = "pyramid";
+
+            int iShape = 0, iMat = 0, iBounds = 0;
+
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(8.0, 2.0, -2.0));
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(3.0, 0.0, 0.0));
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.0, 3.0, 0.0));
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(0.0, 0.0, 3.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 64.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.1, 0.7, 1.0, 1.0)); // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.5, 1.0, 0.1)); // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Absorption
+
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(8.0, 2.0, -2.0, 64.0));
+            shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 1);
+
+            shader.setUniform(std::format("{}Count", shapeName), iMat / matLen);
+        }
     }
 
     unsigned int 
