@@ -6,8 +6,9 @@
 #include <SFML/Graphics/Shader.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
-#include <math.h>
+#include <string>
 #include <format>
+#include <math.h>
 
 
 struct Cam
@@ -45,6 +46,9 @@ int main()
     if (!sf::Shader::isAvailable())
         return 1;
 
+    unsigned int nextSnapshot = 0;
+
+    
     // Build Scene
     Cam cam(
         75.0f, true, 5.0f,
@@ -117,7 +121,7 @@ int main()
         disableLighting = false;
         viewBounds = false;
         perPixelSamples = 16;
-        maxBounces = 16;
+        maxBounces = 12;
     }
 
     {
@@ -191,14 +195,14 @@ int main()
             // Blender Comparison
 
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-25.0, 0.0, -20.0));
-            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(25.0, 15.0, -12.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.5, 0.0, riGlass, 3.0)); // Surface
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(25.0, 15.0, -18.0));
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.5, 0.0, riGlass, 1.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 1.0));  // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
-            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 7.5, -16.0, 30.0));
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 7.5, -19.0, 28.0));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 1);
 
 
@@ -341,22 +345,22 @@ int main()
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 1);
 
 
-            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(0.0, 3.0, 3.0, 1.0));
+            shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(0.0, 3.0, 5.0, 1.5));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 1.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 1.0));  // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Specular
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 100.0));  // Emission
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 50.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
-            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 3.0, 3.0, 1.1));
+            shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.0, 3.0, 5.0, 1.6));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 1);
             // Blender Comparison
 
 
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(-15.0, 2.5, 3.0, 5.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.5, 0.0, riGlass, 1.0)); // Surface
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 1.0));  // Albedo
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Specular
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, riGlass, 1.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.0));  // Albedo
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 1.0, 0.0));  // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Absorption
 
@@ -573,12 +577,27 @@ int main()
 
             if (event.type == sf::Event::KeyPressed)
             {
-                if (event.key.code == sf::Keyboard::L)
+                if (event.key.code == sf::Keyboard::Enter)
+                {
+                    sf::Image snapshotImage;
+
+                    if (realRender)
+                        snapshotImage = displayImg;
+                    else
+                        snapshotImage = renderTex.getTexture().copyToImage();
+
+                    nextSnapshot = utils::FirstUnusedSnapshot(nextSnapshot);
+                    std::string filename = "Snapshots/Snapshot " + std::to_string(nextSnapshot) + ".png";
+
+                    if (!snapshotImage.saveToFile(filename))
+                        std::cout << "Saving Failed!";
+                }
+                else if (event.key.code == sf::Keyboard::L)
                 {
                     disableLighting = !disableLighting;
                     hasMoved = true;
                 }
-                if (event.key.code == sf::Keyboard::B)
+                else if (event.key.code == sf::Keyboard::B)
                 {
                     viewBounds = !viewBounds;
                     hasMoved = true;
@@ -676,7 +695,7 @@ int main()
                 for (int i = 0; i < dim; i++)
                 {
                     render[i] = Color();
-                    renderImg.setPixel(i%w, i/w, { 0, 0, 0 });
+                    renderImg.setPixel(i%w, i/w, {0, 0, 0});
                 }
         }
 

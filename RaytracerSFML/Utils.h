@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <string>
 #include <cmath>
 #include <random>
 
@@ -39,6 +40,14 @@ namespace utils
     double RandNum()
     {
         return (double)VeryRand(0, UINT_MAX) / ((double)(UINT_MAX));
+    }
+
+    unsigned int FirstUnusedSnapshot(unsigned int i)
+    {
+        FILE* file;
+        while (fopen_s(&file, ("Snapshots/Snapshot " + std::to_string(i) + ".png").c_str(), "r") == 0)
+        { fclose(file); i++; }
+        return i;
     }
 
 
