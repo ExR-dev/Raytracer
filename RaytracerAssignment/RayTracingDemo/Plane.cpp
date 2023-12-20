@@ -18,6 +18,6 @@ bool Plane::Intersection(const Ray & ray, double & t)
     if (normal * (origin - ray.origin) >= 0)
         return false; // Ray is behind plane
 
-    t = ((normal * origin) - normal * ray.origin) / (normal * ray.direction);
+    t = ((normal * origin) - normal * ray.origin) / a;
     return true;
 }

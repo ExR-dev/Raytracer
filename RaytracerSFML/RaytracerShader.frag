@@ -414,7 +414,8 @@ bool RaySphereIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 
 
     if (t0 < 0.0)
     {
-        if (t1 < 0.0) return false;
+        if (t1 < 0.0) 
+            return false;
         t0 = t1;
     }
 
@@ -475,19 +476,19 @@ bool RayTriIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, 
 
     float t = f * dot(edge2, q);
 
-    if (t > 0.0)
-    {
-        l = t;
-        p = rO + rD * t;
-        n = normalize(cross(edge1, edge2));
-        side = (dot(n, rD) < 0.0) ? 1 : -1;
+    if (t <= 0.0)
+        return false;
 
-        // If no backface-culling
-        /*if (dot(n, rD) > 0.0)
-            n *= -1.0;*/
-        return true;
-    }
-    return false;
+    l = t;
+    p = rO + rD * t;
+    n = normalize(cross(edge1, edge2));
+    side = (dot(n, rD) < 0.0) ? 1 : -1;
+
+    // If no backface-culling
+    /*if (dot(n, rD) > 0.0)
+        n *= -1.0;*/
+
+    return true;
 }
 // TRI
 
@@ -502,20 +503,20 @@ uniform vec4 planeMats[PLANEMAX*MATVALS];
 bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
 {
     i *= 2;
+
     float a = dot(planeShapes[i+1], rD);
+    float b = dot(planeShapes[i+1], planeShapes[i] - rO);
 
-    if ((a >= 0.0) != (dot(planeShapes[i+1], planeShapes[i] - rO) >= 0.0))
+    if ((a >= 0.0) != (b >= 0.0))
+        return false;
+    if (abs(b) < MINVAL)
         return false;
 
-    if (dot(planeShapes[i+1], planeShapes[i] - rO) >= 0.0)
-        return false;
-
-    float t = (dot(planeShapes[i+1], planeShapes[i]) - dot(planeShapes[i+1], rO)) / a;
-
-    l = t;
-    p = rO + rD * t;
+    l = (dot(planeShapes[i+1], planeShapes[i]) - dot(planeShapes[i+1], rO)) / a;
+    p = rO + rD * l;
     n = planeShapes[i+1];
     side = (dot(n, rD) < 0.0) ? 1 : -1;
+
     return true;
 }
 // PLANE
@@ -562,20 +563,20 @@ bool RayPyramidIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3
         return false;
 
     float t = f * dot(edge2, q);
+    
+    if (t <= 0.0)
+        return false;
 
-    if (t > 0.0)
-    {
-        l = t;
-        p = rO + rD * t;
-        n = normalize(cross(edge1, edge2));
-        side = (dot(n, rD) < 0.0) ? 1 : -1;
+    l = t;
+    p = rO + rD * t;
+    n = normalize(cross(edge1, edge2));
+    side = (dot(n, rD) < 0.0) ? 1 : -1;
 
-        // If no backface-culling
-        //if (dot(n, rD) > 0.0)
-        //    n *= -1.0;
-        return true;
-    }
-    return false;
+    // If no backface-culling
+    //if (side < 0.0)
+    //    n *= -1.0;
+
+    return true;
 }
 // PYRAMID
 
