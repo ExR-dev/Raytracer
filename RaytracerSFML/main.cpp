@@ -120,8 +120,8 @@ int main()
         randomizeSampleDir = true;
         disableLighting = false;
         viewBounds = false;
-        perPixelSamples = 16;
-        maxBounces = 12;
+        perPixelSamples = 2;
+        maxBounces = 8;
     }
 
     {

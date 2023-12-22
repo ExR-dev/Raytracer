@@ -618,9 +618,9 @@ uniform bool viewBounds;
 uniform vec3 peakCol = vec3(0.75, 0.9, 1.0) * 0.95 * 0.1;
 uniform vec3 horizonCol = vec3(0.5, 0.65, 1.0) * 0.85 * 0.1;
 uniform vec3 voidCol = vec3(0.1, 0.5, 1.0) * 0.1 * 0.1;
-uniform vec3 sunCol = vec3(1.0, 0.9, 0.1) * 1.0;
+uniform vec3 sunCol = vec3(1.0, 0.95, 0.6) * 7.5;
 uniform vec3 sunDir = normalize(vec3(40, 50, 20));
-uniform float sunFlare = 512.0;
+uniform float sunFlare = 256.0;
 
 vec3 SampleSkybox(in vec3 rD)
 {
@@ -1100,7 +1100,8 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             {
                 queuedAbsorption = vec4(0);
 
-			    vec3 diffuseDir = normalize(n + RandDir(seed));
+			    //vec3 diffuseDir = normalize(n + RandDir(seed));
+			    vec3 diffuseDir = normalize(n + RandomDirection(seed));
 			    vec3 specularDir = reflect(rD, n);
                 bool isSpecularBounce = specular.w >= RandomValue(seed);
 			    rD = normalize(Lerp(diffuseDir, specularDir, isSpecularBounce ? surface.y * fresnelReflection.y : surface.x * fresnelReflection.x));
@@ -1204,14 +1205,16 @@ void main(void)
 
     }
 
-    /*if (viewBounds)
+    if (viewBounds)
     {
-        float l, s;
+        float l = 0;
+        int s = 0;
         vec3 p, n;
         vec4 albedo, emission, surface, specular, absorption;
+
         if (GetFirstHit(camPos, pixDir, true, l, p, n, s, surface, albedo, specular, emission, absorption))
             gl_FragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
-    }*/
+    }
 
 }
 
