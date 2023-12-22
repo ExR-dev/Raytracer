@@ -658,10 +658,7 @@ vec2 FresnelReflectAmount(vec3 dir, vec3 normal, vec2 reflectivity, float n1, fl
 
 
 
-bool GetFirstHit(
-    in vec3 rO, in vec3 rD, in bool showBounds,
-    inout float l, inout vec3 p, inout vec3 n, inout int s, 
-    out vec4 surface, out vec4 albedo, out vec4 specular, out vec4 emission, out vec4 absorption)
+bool GetFirstHit(in vec3 rO, in vec3 rD, in bool showBounds, inout float l, inout vec3 p, inout vec3 n, inout int s, out vec4 surface, out vec4 albedo, out vec4 specular, out vec4 emission, out vec4 absorption)
 {
     if (dot(rD, n) > 0.0)
         rO += n * MINVAL;
@@ -1207,14 +1204,14 @@ void main(void)
 
     }
 
-    if (viewBounds)
+    /*if (viewBounds)
     {
         float l, s;
         vec3 p, n;
         vec4 albedo, emission, surface, specular, absorption;
         if (GetFirstHit(camPos, pixDir, true, l, p, n, s, surface, albedo, specular, emission, absorption))
             gl_FragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
-    }
+    }*/
 
 }
 
