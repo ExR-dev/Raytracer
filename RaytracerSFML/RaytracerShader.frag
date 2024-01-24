@@ -521,65 +521,6 @@ bool RayPlaneIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p
 }
 // PLANE
 
-
-// PYRAMID
-const int PYRAMIDMAX = 8;
-uniform int pyramidCount;
-
-uniform vec4 pyramidBounds[PYRAMIDMAX];
-uniform int pyramidBoundCoverage[PYRAMIDMAX];
-
-uniform vec3 pyramidShapes[PYRAMIDMAX*4];
-uniform vec4 pyramidMats[PYRAMIDMAX*MATVALS];
-
-bool RayPyramidIntersect(in vec3 rO, in vec3 rD, in int i, out float l, out vec3 p, out vec3 n, out int side)
-{
-    i *= 4;
-    vec3 edge1 = pyramidShapes[i+1];
-    vec3 edge2 = pyramidShapes[i+2];
-    vec3 edge3 = pyramidShapes[i+3];
-
-    vec3 iN = cross(edge1, edge2);
-    //if (abs(dot(iN, rD)) < MINVAL)
-    //    return false;
-
-    vec3 h = cross(rD, edge2);
-    float a = dot(edge1, h);
-
-    if (a > -MINVAL && a < MINVAL)
-        return false;
-
-    vec3 s = rO - pyramidShapes[i];
-    float f = 1.0 / a;
-    float u = f * dot(s, h);
-
-    if (u < 0.0 || u > 1.0)
-        return false;
-
-    vec3 q = cross(s, edge1);
-    float v = f * dot(rD, q);
-
-    if (v < 0.0 || u + v > 1.0)
-        return false;
-
-    float t = f * dot(edge2, q);
-    
-    if (t <= 0.0)
-        return false;
-
-    l = t;
-    p = rO + rD * t;
-    n = normalize(cross(edge1, edge2));
-    side = (dot(n, rD) < 0.0) ? 1 : -1;
-
-    // If no backface-culling
-    //if (side < 0.0)
-    //    n *= -1.0;
-
-    return true;
-}
-// PYRAMID
-
 /*=======================================================================================================*/
 /*                                                SHAPES                                                 */
 /*=======================================================================================================*/
@@ -881,49 +822,6 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, in bool showBounds, inout float l, inou
         }
     }
     
-    boundsID = 0;
-    boundOffset = 0;
-    while (boundOffset < pyramidCount)
-    {
-        if (CheckBoundingSphere(rO, rD, pyramidBounds[boundsID]))
-        {    
-            if (showBounds)
-            {
-                l = 1.0;
-                p = rD * l; 
-                n = -rD;
-                s = 1;
-                albedo *= vec4(1.0,1.0,0.75,1.0);
-                emission += vec4(0.3,0.3,0.0,0.3);
-                hasHit = true;
-            }
-            else
-            {
-                for (int i = boundOffset; i < min(boundOffset + pyramidBoundCoverage[boundsID], pyramidCount); i++)
-                {
-                    if (RayPyramidIntersect(rO, rD, i, nl, np, nn, ss))
-                    {
-                        if (nl < l)
-                        {
-                            l = nl; 
-                            p = np; 
-                            n = nn;
-                            s = ss;
-
-                            surface = pyramidMats[i*MATVALS+0];
-                            albedo = pyramidMats[i*MATVALS+1];
-                            specular = pyramidMats[i*MATVALS+2];
-                            emission = pyramidMats[i*MATVALS+3];
-                            absorption = pyramidMats[i*MATVALS+4];
-                            hasHit = true;
-                        }
-                    }
-                }
-            }
-        }
-        boundOffset += pyramidBoundCoverage[boundsID++];
-    }
-
     return hasHit;
 }
 
@@ -1126,6 +1024,8 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             if (disableLighting)
                 return vec3(0);
 
+            break; // Disable skybox
+
             vec3 skyLight = SampleSkybox(rD);
 			incomingLight += skyLight * rayColour;
 			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
@@ -1201,7 +1101,7 @@ void main(void)
     {
         float avgWeight = 1.0 / (float(frameCount + 1));
         outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
-        gl_FragColor = vec4(outCol, 1);
+        gl_FragColor = vec4(outCol, 1.0);
 
     }
 
