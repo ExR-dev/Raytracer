@@ -1024,7 +1024,7 @@ vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
             if (disableLighting)
                 return vec3(0);
 
-            break; // Disable skybox
+            // break; // Disable skybox
 
             vec3 skyLight = SampleSkybox(rD);
 			incomingLight += skyLight * rayColour;
