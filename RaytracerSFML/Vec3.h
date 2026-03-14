@@ -1,9 +1,6 @@
 #pragma once
-
 #include "Utils.h"
-
 #include <cmath>
-
 #include "SFML/Graphics/Shader.hpp"
 
 

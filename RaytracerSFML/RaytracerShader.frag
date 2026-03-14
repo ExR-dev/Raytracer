@@ -556,19 +556,20 @@ uniform bool viewBounds;
 
 
 
-uniform vec3 peakCol = vec3(0.75, 0.9, 1.0) * 0.95 * 0.1;
-uniform vec3 horizonCol = vec3(0.5, 0.65, 1.0) * 0.85 * 0.1;
+uniform vec3 peakCol = vec3(0.75, 0.9, 1.0) * 0.95 * 0.3;
+uniform vec3 horizonCol = vec3(0.6, 0.75, 1.0) * 0.85 * 0.3;
 uniform vec3 voidCol = vec3(0.1, 0.5, 1.0) * 0.1 * 0.1;
-uniform vec3 sunCol = vec3(1.0, 0.95, 0.6) * 7.5;
+uniform vec3 sunCol = vec3(1.0, 0.9, 0.6) * 5000.0;
 uniform vec3 sunDir = normalize(vec3(40, 50, 20));
-uniform float sunFlare = 256.0;
+uniform float sunSize = 0.1;
+uniform float sunFlare = 128.0;
 
 vec3 SampleSkybox(in vec3 rD)
 {
 	float skyGradientT = pow(smoothstep(0.0, 0.7, rD.y), 0.8);
 	float groundToSkyT = smoothstep(-0.06, 0.0, rD.y);
 	vec3 skyGradient = Lerp(horizonCol, peakCol, skyGradientT);
-	float sun = pow(max(0.0, dot(rD, sunDir)), sunFlare);
+	float sun = pow(max(0.0, (dot(rD, sunDir) - 1.0 + sunSize) / sunSize), sunFlare);
 	// Combine ground, sky, and sun
 	vec3 composite = Lerp(voidCol, skyGradient, groundToSkyT) + sunCol * sun * float(groundToSkyT >= 1);
 	return composite;
@@ -825,111 +826,6 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, in bool showBounds, inout float l, inou
     return hasHit;
 }
 
-
-// Testing: Got fresnel reflectance working.
-/*vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
-{
-	vec3 incomingLight = vec3(0);
-	vec3 rayColour = vec3(1);
-
-	vec4 queuedAbsorption = vec4(0);
-
-    for (int i = 0; i <= maxBounces; i++)
-    {
-        float l = MAXVAL;
-        vec3 p, n;
-        int s;
-
-        vec4 surface = vec4(0);
-        vec4 albedo = vec4(0);
-        vec4 specular = vec4(0);
-        vec4 emission = vec4(0);
-        vec4 absorption = vec4(0);
-
-        if (GetFirstHit(rO, rD, false, l, p, n, s, surface, albedo, specular, emission, absorption))
-        {
-            if (disableLighting && i == 1) //
-                return albedo.xyz * albedo.w + emission.xyz * emission.w;
-                
-            rayColour *= exp(-queuedAbsorption.xyz * (l + queuedAbsorption.w));
-
-            float 
-                ri1 = ri,
-                ri2 = surface.z;
-
-            if (s < 0)
-            {
-                ri1 = ri2;
-                ri2 = ri;
-            }
-            
-            float fresnelReflection = FresnelReflectAmount(rD, n, surface.xy, ri1, ri2).x;
-            fresnelReflection = pow(fresnelReflection, surface.w);
-            bool isTransmitted = (RandomValue(seed) > fresnelReflection) && (RandomValue(seed) > albedo.w);
-
-            if (isTransmitted)
-            { // Handle transmission
-
-                bool TIR = false;
-                vec3 nrD = refract(rD, n, ri1/ri2);
-                
-                if (abs(length(nrD) - 1.0) > 0.1)
-                {
-                    nrD = reflect(rD, n);
-                    TIR = true;
-                }
-                rD = nrD;
-
-                if (s > 0)
-                {
-                    if (!TIR)
-                        queuedAbsorption = absorption;
-                }
-                else
-                {
-                    if (queuedAbsorption != absorption)
-                        rayColour *= exp(-absorption.xyz * (l + absorption.w));
-                    queuedAbsorption = vec4(0);
-                }   
-                
-                // Update light calculations
-			    vec3 emittedLight = emission.xyz * emission.w;
-			    incomingLight += emittedLight * rayColour;
-			    rayColour *= albedo.xyz;
-            }
-            else
-            { // Handle reflection
-			    vec3 diffuseDir = normalize(n + RandDir(seed));
-			    vec3 reflectDir = reflect(rD, n);
-			    rD = normalize(Lerp(diffuseDir, reflectDir, surface.x));
-
-			    // Update light calculations
-			    vec3 emittedLight = emission.xyz * emission.w;
-			    incomingLight += emittedLight * rayColour;
-			    rayColour *= Lerp(albedo.xyz, specular.xyz, specular.w);
-            }
-            rO = p;
-            	
-			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
-			if (RandomValue(seed) >= k)
-				break;
-			rayColour *= 1.0 / k; 
-        }
-        else
-        { // Ambient
-            if (disableLighting)
-                return vec3(0);
-
-            vec3 skyLight = SampleSkybox(rD);
-			incomingLight += skyLight * rayColour;
-			float k = max(rayColour.r, max(rayColour.g, rayColour.b));
-			rayColour *= 1.0 / k; 
-            break;
-        }
-    }
-
-    return incomingLight;
-}*/
 
 vec3 Raytrace(in vec3 rO, in vec3 rD, in float ri, inout uint seed)
 {
