@@ -395,3 +395,4 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+!**/External/**/*.pdb

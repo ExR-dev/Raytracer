@@ -48,7 +48,7 @@ int main()
 
     unsigned int nextSnapshot = 0;
 
-    
+
     // Build Scene
     Cam cam(
         75.0f, true, 5.0f,
@@ -58,7 +58,7 @@ int main()
 
 
     // Render Scene
-    const unsigned int 
+    const unsigned int
         w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ /*960,*/ 1280, /*1920,*/
         h = /*45,*/ /*90, */ /*180,*/ /*360,*/ /*540,*/ 720,  /*1080,*/
         dim = w * h;
@@ -82,20 +82,23 @@ int main()
         render[i] = Color();
 
 
-    sf::Image 
-        renderImg({ w, h }, sf::Color::Black), 
+    sf::Image
+        renderImg({ w, h }, sf::Color::Black),
         displayImg({ w, h }, sf::Color::Black);
 
     sf::RenderTexture renderTex({ w, h });
 
-    sf::Texture tex, displayTex;
+    sf::Texture tex(sf::Vector2u(w, h)), displayTex(sf::Vector2u(w, h));
 
     sf::Sprite sprite(tex), displaySprite(displayTex);
     displaySprite.setScale({ (float)scaleW, (float)scaleH });
 
     sf::Shader shader;
-    shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment);
-
+    if (!shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment))
+    {
+        std::cerr << "Failed to load shader" << std::endl;
+        return -1;
+    }
 
     sf::Clock clock;
     double lT = 0.0, tT = 0.0, dT = 0.0;
@@ -121,19 +124,19 @@ int main()
         viewBounds = false;
         perPixelSamples = 32;
         maxBounces = 6;
-	}
+    }
 
     shader.setUniform("imgW", (int)w);
     shader.setUniform("imgH", (int)h);
     shader.setUniform("samples", (int)perPixelSamples);
     shader.setUniform("maxBounces", (int)maxBounces);
 
-	// Send shape data to GPU 
+    // Send shape data to GPU 
     {
         const int matLen = 5;
 
         // AABBs (MAX 16)
-        { 
+        {
             // Shape:   
             //      vec3(min x3), vec3(max x3)
             // Mat:     
@@ -146,7 +149,7 @@ int main()
             const std::string shapeName = "aabb";
 
             int iShape = 0, iMat = 0, iBounds = 0;
-            
+
             /*
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(-1.0, 2.0, -1.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(1.0, 4.0, 1.0));
@@ -168,9 +171,9 @@ int main()
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(0.7, 3.0, -0.65, 2.75));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / matLen);
             */
-            
 
-            
+
+
             /*shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(5.0, 0.0, -7.0));
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec3(7.0, 2.5, -6.0));
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.75, 0.0)); // Surface
@@ -178,10 +181,10 @@ int main()
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0));  // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(3.0, 3.0, 2.0, 0.0));  // Absorption
-            
+
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(6.0, 1.25, -6.5, 2.5));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), iMat / matLen);*/
-            
+
 
 
             // Blender Comparison
@@ -211,9 +214,9 @@ int main()
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / matLen);
         }
-        
+
         // OBBs (MAX 16)
-        { 
+        {
             // Shape:   
             //      vec3(center x3), vec3(halfLength x3), vec3(x-axis x3), vec3(y-axis x3), vec3(z-axis x3)
             // Mat:     
@@ -295,21 +298,21 @@ int main()
 
 
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(12.0, 1.1, 0.0, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.2, 0.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.5, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 1.0, 0.0, 0.0)); // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.0, 1.0)); // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Absorption
 
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(14.0, 1.1, 0.0, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.2, 0.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.5, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 1.0, 1.0, 0.0)); // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 0.0, 1.0)); // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Emission
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Absorption
 
             shader.setUniform(std::format("{}Shapes[{}]", shapeName, iShape++), sf::Glsl::Vec4(13.0, 1.5, 1.73205, 1.0));
-            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.2, 0.0)); // Surface
+            shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 1.5, 0.0)); // Surface
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(1.0, 0.0, 1.0, 0.0)); // Albedo
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 1.0, 0.0, 1.0)); // Specular
             shader.setUniform(std::format("{}Mats[{}]", shapeName, iMat++), sf::Glsl::Vec4(0.0, 0.0, 0.0, 0.0)); // Emission
@@ -386,11 +389,11 @@ int main()
 
             shader.setUniform(std::format("{}Bounds[{}]", shapeName, iBounds), sf::Glsl::Vec4(-7.0, 3.5, 3.0, 2.1));
             shader.setUniform(std::format("{}BoundCoverage[{}]", shapeName, iBounds++), 1);
-            
+
 
             shader.setUniform(std::format("{}Count", shapeName), iMat / matLen);
         }
-        
+
         // Tris (MAX 32)
         {
             // Shape:   
@@ -529,7 +532,7 @@ int main()
         }
     }
 
-    unsigned int 
+    unsigned int
         cumulativeFrameCount = 0,
         totFrames = 0;
 
@@ -552,7 +555,7 @@ int main()
 
             if (event.is<sf::Event::MouseButtonPressed>())
             {
-				auto eventSubtype = event.getIf<sf::Event::MouseButtonPressed>();
+                auto eventSubtype = event.getIf<sf::Event::MouseButtonPressed>();
 
                 if (eventSubtype->button == sf::Mouse::Button::Right)
                 {
@@ -569,7 +572,7 @@ int main()
                 {
                     float lFov = cam.fov;
                     cam.fov = std::clamp(cam.fov - eventSubtype->delta, 0.01f, 179.99f);
-                    
+
                     if (abs(cam.fov - lFov) > 0.000001)
                         hasMoved = true;
                 }
@@ -670,7 +673,7 @@ int main()
                     cam.fwd * cos(sign) +
                     cam.right.Cross(cam.fwd) * sin(sign) +
                     cam.right * cam.right.Dot(cam.fwd) * (1.0f - cos(sign))
-                );
+                    );
 
                 if (offAngle.Dot(cam.fwd) <= 0)
                     cam.fwd = Vec3(0, verticality, 0) + offAngle * utils::MINVAL * 100.0;
@@ -737,7 +740,7 @@ int main()
                     (uint8_t)(displayCol.r * 255.0),
                     (uint8_t)(displayCol.g * 255.0),
                     (uint8_t)(displayCol.b * 255.0)
-                });
+                    });
             }
         }
 
@@ -764,9 +767,9 @@ int main()
 
             shader.setUniform("frameCount", cumulativeLighting ? (int)cumulativeFrameCount : 0);
         }
-
-        tex.loadFromImage(renderImg);
-        sprite.setTexture(tex);
+        
+        if (!tex.loadFromImage(renderImg))
+			std::cout << "Texture Load Failed!" << std::endl;
 
         shader.setUniform("lastFrame", renderTex.getTexture());
 
@@ -777,14 +780,15 @@ int main()
         {
             renderImg = renderTex.getTexture().copyToImage();
 
-            displayTex.loadFromImage(displayImg);
+            if (!displayTex.loadFromImage(displayImg))
+				std::cout << "Texture Load Failed!" << std::endl;
             displaySprite.setTexture(displayTex);
         }
         else
         {
             displaySprite.setTexture(renderTex.getTexture());
         }
-        
+
         window.clear();
         window.draw(displaySprite);
         window.display();

@@ -3,7 +3,6 @@
 #include <cmath>
 #include "SFML/Graphics/Shader.hpp"
 
-
 struct Vec3
 {
     double x, y, z;
