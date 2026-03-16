@@ -185,6 +185,10 @@ bool CheckBoundingBox(in vec3 rO, in vec3 irD, in vec3 bMin, in vec3 bMax)
 
 bool CheckBoundingSphere(in vec3 rO, in vec3 rD, in vec4 s)
 {
+	// if negative rad, always succeed
+	if (s.w < 0.0)
+		return true;
+
 	vec3 oc = rO - s.xyz;
 	float b = dot(oc, rD);
 

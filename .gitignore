@@ -396,3 +396,4 @@ FodyWeavers.xsd
 *.msp
 
 !**/External/**/*.pdb
+RaytracerSFML/imgui.ini

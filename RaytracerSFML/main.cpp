@@ -791,6 +791,9 @@ int main()
 			displaySprite.setTexture(renderTex.getTexture());
 		}
 
+		if (ImGui::Button("Quit"))
+			window.close();
+
 		ImGui::End();
 
 		window.clear();
