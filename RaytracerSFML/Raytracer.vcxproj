@@ -104,14 +104,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;$(SolutionDir)External\ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)External\SFML-3.0.2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>flac.lib;freetype.lib;ogg.lib;sfml-audio-d.lib;sfml-main-d.lib;sfml-graphics-d.lib;sfml-window-d.lib;sfml-network-d.lib;sfml-system-d.lib;vorbis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>flac.lib;freetype.lib;ogg.lib;sfml-audio-d.lib;sfml-main-d.lib;sfml-graphics-d.lib;sfml-window-d.lib;sfml-network-d.lib;sfml-system-d.lib;vorbis.lib;%(AdditionalDependencies);opengl32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -122,7 +122,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;$(SolutionDir)External\ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -131,11 +131,27 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)External\SFML-3.0.2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sfml-audio.lib;sfml-main.lib;sfml-graphics.lib;sfml-network.lib;sfml-system.lib;sfml-window.lib</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-main.lib;sfml-graphics.lib;sfml-network.lib;sfml-system.lib;sfml-window.lib;opengl32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="External\ImGui\backends\imgui_impl_glfw.h" />
+    <ClInclude Include="External\ImGui\backends\imgui_impl_opengl2.h" />
+    <ClInclude Include="External\ImGui\backends\imgui_impl_opengl3.h" />
+    <ClInclude Include="External\ImGui\backends\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="External\ImGui\imconfig-SFML.h" />
+    <ClInclude Include="External\ImGui\imconfig.h" />
+    <ClInclude Include="External\ImGui\imgui-SFML.h" />
+    <ClInclude Include="External\ImGui\imgui-SFML_export.h" />
+    <ClInclude Include="External\ImGui\imgui.h" />
+    <ClInclude Include="External\ImGui\imgui_internal.h" />
+    <ClInclude Include="External\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="External\ImGui\imstb_textedit.h" />
+    <ClInclude Include="External\ImGui\imstb_truetype.h" />
+    <ClInclude Include="External\ImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="Graphics.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="Shapes.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Vec3.h" />
   </ItemGroup>
@@ -143,6 +159,15 @@
     <None Include="RaytracerShader.frag" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="External\ImGui\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="External\ImGui\backends\imgui_impl_opengl2.cpp" />
+    <ClCompile Include="External\ImGui\backends\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="External\ImGui\imgui-SFML.cpp" />
+    <ClCompile Include="External\ImGui\imgui.cpp" />
+    <ClCompile Include="External\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="External\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="External\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="External\ImGui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
