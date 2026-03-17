@@ -8,17 +8,15 @@ struct Material
 	const static int len = 5;
 
 	sf::Glsl::Vec4
-		albedo, 
-		specular, 
-		emission, 
-		absorption;
+		albedo = sf::Glsl::Vec4(1, 1, 1, 1),
+		specular = sf::Glsl::Vec4(1, 1, 1, 0.1),
+		emission = sf::Glsl::Vec4(0, 0, 0, 0),
+		absorption = sf::Glsl::Vec4(0, 0, 0, 0);
 
 	float
-		albedoReflectivity,
-		specularReflectivity,
-		reflectiveIndex;
-
-	Material() = default;
+		albedoReflectivity = 0,
+		specularReflectivity = 0,
+		reflectiveIndex = 1;
 
 	void Bind(const std::string& shapeName, sf::Shader& shader, int index) const
 	{

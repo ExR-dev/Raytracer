@@ -7,12 +7,14 @@ struct Shape
 {
 	Material mat;
 
-	virtual ~Shape() = default;
+	virtual void Dummy() const = 0;
 };
 
 struct ShapeAABB : Shape
 {
-	sf::Glsl::Vec3 min, max; 
+	sf::Glsl::Vec3 min, max;
+
+	void Dummy() const override {}
 
 	static size_t GetMax() { return 16; }
 	static const char* GetShapeName() { return "aabb"; }
@@ -21,6 +23,8 @@ struct ShapeAABB : Shape
 struct ShapeOBB : Shape
 {
 	sf::Glsl::Vec3 center, halfLength, xAxis, yAxis, zAxis;
+
+	void Dummy() const override {}
 
 	static size_t GetMax() { return 16; }
 	static const char* GetShapeName() { return "obb"; }
@@ -31,6 +35,8 @@ struct ShapeSphere : Shape
 	sf::Glsl::Vec3 pos;
 	float rad;
 
+	void Dummy() const override {}
+
 	static size_t GetMax() { return 16; }
 	static const char* GetShapeName() { return "sphere"; }
 };
@@ -39,6 +45,8 @@ struct ShapeTri : Shape
 {
 	sf::Glsl::Vec3 v1, v2, v3;
 
+	void Dummy() const override {}
+
 	static size_t GetMax() { return 32; }
 	static const char* GetShapeName() { return "tri"; }
 };
@@ -46,6 +54,8 @@ struct ShapeTri : Shape
 struct ShapePlane : Shape
 {
 	sf::Glsl::Vec3 center, normal;
+
+	void Dummy() const override {}
 
 	static size_t GetMax() { return 8; }
 	static const char* GetShapeName() { return "plane"; }
@@ -106,8 +116,7 @@ void BindShapes(const std::vector<Shape*>& shapes, sf::Shader& shader)
 	for (size_t i = 0; i < sphereCount; ++i)
 	{
 		const std::string shapeName = ShapeSphere::GetShapeName();
-		shader.setUniform(std::format("{}Shapes[{}]", shapeName, i * 2), spheres[i]->pos);
-		shader.setUniform(std::format("{}Shapes[{}]", shapeName, i * 2 + 1), spheres[i]->rad);
+		shader.setUniform(std::format("{}Shapes[{}]", shapeName, i), sf::Glsl::Vec4(spheres[i]->pos.x, spheres[i]->pos.y, spheres[i]->pos.z, spheres[i]->rad));
 
 		spheres[i]->mat.Bind(shapeName, shader, i);
 	}
@@ -132,14 +141,18 @@ void BindShapes(const std::vector<Shape*>& shapes, sf::Shader& shader)
 	}
 
 	shader.setUniform("aabbBounds[0]", sf::Glsl::Vec4(0, 0, 0, -1));
-	shader.setUniform("aabbBoundCoverage[0]", aabbCount);
-
 	shader.setUniform("obbBounds[0]", sf::Glsl::Vec4(0, 0, 0, -1));
-	shader.setUniform("obbBoundCoverage[0]", obbCount);
-
 	shader.setUniform("sphereBounds[0]", sf::Glsl::Vec4(0, 0, 0, -1));
-	shader.setUniform("sphereBoundCoverage[0]", sphereCount);
-
 	shader.setUniform("triBounds[0]", sf::Glsl::Vec4(0, 0, 0, -1));
+
+	shader.setUniform("aabbBoundCoverage[0]", aabbCount);
+	shader.setUniform("obbBoundCoverage[0]", obbCount);
+	shader.setUniform("sphereBoundCoverage[0]", sphereCount);
 	shader.setUniform("triBoundCoverage[0]", triCount);
+
+	shader.setUniform("aabbCount", aabbCount);
+	shader.setUniform("obbCount", obbCount);
+	shader.setUniform("sphereCount", sphereCount);
+	shader.setUniform("triCount", triCount);
+	shader.setUniform("planeCount", planeCount);
 }
