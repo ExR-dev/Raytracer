@@ -3,20 +3,17 @@
 #include "Graphics.h"
 #include "Shapes.h"
 
-#include <SFML/Graphics/Shader.hpp>
-#include <SFML/Graphics.hpp>
+#include "SFML/Graphics/Shader.hpp"
+#include "SFML/Graphics.hpp"
 #include "imgui.h"
 #include "imgui-SFML.h"
+#include "rapidjson.h"
+#include "prettywriter.h"
 
 #include <iostream>
 #include <string>
 #include <format>
 #include <cmath>
-
-constexpr unsigned int
-	w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ /*960,*/ /*1280,*/ 1920,
-	h = /*45,*/ /*90, */ /*180,*/ /*360,*/ /*540,*/ /*720, */ 1080,
-	dim = w * h;
 
 struct Cam
 {
@@ -149,6 +146,11 @@ int main()
 	if (!sf::Shader::isAvailable())
 		return 1;
 
+	unsigned int
+		w = 1280, 
+		h = 720,
+		dim = w * h;
+
 	unsigned int nextSnapshot = 0;
 
 	// Build Scene
@@ -174,7 +176,6 @@ int main()
 	for (int i = 0; i < dim; i++)
 		render[i] = Color();
 
-
 	sf::Image
 		renderImg({ w, h }, sf::Color::Black),
 		displayImg({ w, h }, sf::Color::Black);
@@ -198,7 +199,6 @@ int main()
 
 	sf::Vector2i deltas, windowPos, windowSize(window.getSize());
 
-
 	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds;
 	unsigned int perPixelSamples, maxBounces;
 
@@ -221,26 +221,26 @@ int main()
 	shader.setUniform("samples", (int)perPixelSamples);
 	shader.setUniform("maxBounces", (int)maxBounces);
 
-	// SHAPE SETUP USING STRUCTS
 	std::vector<Shape*> shapes;
+	{
+		// Example AABB
+		auto* aabb1 = new ShapeAABB;
+		aabb1->min = sf::Glsl::Vec3(-25.0, 0.0, -20.0);
+		aabb1->max = sf::Glsl::Vec3(25.0, 15.0, -18.0);
+		shapes.push_back(aabb1);
 
-	// Example AABB
-	auto* aabb1 = new ShapeAABB;
-	aabb1->min = sf::Glsl::Vec3(-25.0, 0.0, -20.0);
-	aabb1->max = sf::Glsl::Vec3(25.0, 15.0, -18.0);
-	shapes.push_back(aabb1);
+		// Example Sphere
+		auto* sphere1 = new ShapeSphere;
+		sphere1->pos = sf::Glsl::Vec3(1.0, 3.0, 0.0);
+		sphere1->rad = 3.0f;
+		shapes.push_back(sphere1);
 
-	// Example Sphere
-	auto* sphere1 = new ShapeSphere;
-	sphere1->pos = sf::Glsl::Vec3(1.0, 3.0, 0.0);
-	sphere1->rad = 3.0f;
-	shapes.push_back(sphere1);
-
-	// Example Plane
-	auto* plane1 = new ShapePlane;
-	plane1->center = sf::Glsl::Vec3(0.0, -1.0, 0.0);
-	plane1->normal = sf::Glsl::Vec3(0.0, 1.0, 0.0);
-	shapes.push_back(plane1);
+		// Example Plane
+		auto* plane1 = new ShapePlane;
+		plane1->center = sf::Glsl::Vec3(0.0, -1.0, 0.0);
+		plane1->normal = sf::Glsl::Vec3(0.0, 1.0, 0.0);
+		shapes.push_back(plane1);
+	}
 
 	// Bind all shapes to shader
 	BindShapes(shapes, shader);
@@ -248,6 +248,10 @@ int main()
 	unsigned int
 		cumulativeFrameCount = 0,
 		totFrames = 0;
+
+	bool 
+		guiFocused = false, 
+		guiHovered = false;
 
 	while (window.isOpen())
 	{
@@ -263,11 +267,6 @@ int main()
 
 			ImGui::SFML::ProcessEvent(window, event);
 
-			if (event.is<sf::Event::Closed>())
-			{
-				window.close();
-			}
-
 			if (event.is<sf::Event::MouseButtonPressed>())
 			{
 				auto eventSubtype = event.getIf<sf::Event::MouseButtonPressed>();
@@ -278,7 +277,7 @@ int main()
 				}
 			}
 
-			if (event.is<sf::Event::MouseWheelScrolled>())
+			if (event.is<sf::Event::MouseWheelScrolled>() && !guiFocused && !guiHovered)
 			{
 				auto eventSubtype = event.getIf<sf::Event::MouseWheelScrolled>();
 
@@ -292,7 +291,7 @@ int main()
 				}
 			}
 
-			if (event.is<sf::Event::KeyPressed>())
+			if (event.is<sf::Event::KeyPressed>() && !guiFocused)
 			{
 				auto eventSubtype = event.getIf<sf::Event::KeyPressed>();
 
@@ -344,111 +343,228 @@ int main()
 				else if (eventSubtype->code == sf::Keyboard::Key::V)
 					hasMoved = true;
 			}
+
+			if (event.is<sf::Event::Closed>())
+			{
+				window.close();
+			}
 		}
 
 		ImGui::SFML::Update(window, imClock.restart());
 
 		ImGui::Begin("Debug");
+
+		guiFocused = ImGui::IsWindowFocused();
+		guiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+
+		if (ImGui::Button("Snapshot"))
+		{
+			sf::Image snapshotImage;
+
+			if (realRender)
+				snapshotImage = displayImg;
+			else
+				snapshotImage = renderTex.getTexture().copyToImage();
+
+			nextSnapshot = utils::FirstUnusedSnapshot(nextSnapshot);
+			std::string filename = "Snapshots/Snapshot " + std::to_string(nextSnapshot) + ".png";
+
+			if (!snapshotImage.saveToFile(filename))
+				std::cout << "Saving Failed!";
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Quit"))
+			window.close();
+
+		ImGui::SameLine();
 		ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
-		if (ImGui::CollapsingHeader("Camera"))
+		if (ImGui::BeginTabBar("Tabs"))
 		{
-			ImGui::SliderFloat("Speed", &cam.speed, 0.01f, 100.0f);
-
-			if (ImGui::SliderFloat("FOV", &cam.fov, 0.01f, 179.99f))
-				hasMoved = true;
-
-			if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &cam.origin.x, 3, 0.1f))
-				hasMoved = true;
-		}
-
-		if (ImGui::CollapsingHeader("Scene"))
-		{
-			bool isEdited = false;
-
-			enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
-			static ShapeType currSelectedShape = ShapeType::AABB;
-
-			ImGui::Combo("Shape Type", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
-
-			ImGui::SameLine();
-			if (ImGui::Button("Add"))
+			if (ImGui::BeginTabItem("Scene"))
 			{
-				isEdited = true;
+				bool isEdited = false;
 
-				Shape* newShape;
-				switch (currSelectedShape)
+				enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
+				static ShapeType currSelectedShape = ShapeType::AABB;
+
+				ImGui::Combo("##ShapeType", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
+
+				ImGui::SameLine();
+				if (ImGui::Button("Add"))
 				{
-				case ShapeType::AABB:
-					newShape = new ShapeAABB;
-					break;
-				case ShapeType::OBB:
-					newShape = new ShapeOBB;
-					break;
-				case ShapeType::Sphere:
-					newShape = new ShapeSphere;
-					break;
-				case ShapeType::Tri:
-					newShape = new ShapeTri;
-					break;
-				case ShapeType::Plane:
-					newShape = new ShapePlane;
-					break;
-				default:
-					newShape = new ShapeAABB;
-				}
-
-				shapes.push_back(newShape);
-				BindShapes(shapes, shader);
-				hasMoved = true;
-			}
-
-			ImGui::BeginChild("Shapes", { 0, 150 }, ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY);
-			for (int i = 0; i < shapes.size(); ++i)
-			{
-				Shape* shape = shapes[i];
-				ImGui::PushID(shape);
-
-				bool remove = false;
-				isEdited |= EditShape(*shape, remove);
-
-				if (remove)
-				{
-					shapes.erase(std::remove(shapes.begin(), shapes.end(), shape), shapes.end());
-					delete shape;
 					isEdited = true;
-					i--;
+
+					Shape* newShape;
+					switch (currSelectedShape)
+					{
+					case ShapeType::AABB:
+						newShape = new ShapeAABB;
+						break;
+					case ShapeType::OBB:
+						newShape = new ShapeOBB;
+						break;
+					case ShapeType::Sphere:
+						newShape = new ShapeSphere;
+						break;
+					case ShapeType::Tri:
+						newShape = new ShapeTri;
+						break;
+					case ShapeType::Plane:
+						newShape = new ShapePlane;
+						break;
+					default:
+						newShape = new ShapeAABB;
+					}
+
+					shapes.push_back(newShape);
+					BindShapes(shapes, shader);
+					hasMoved = true;
 				}
 
-				ImGui::PopID();
-			}
-			ImGui::EndChild();
+				ImGui::BeginChild("Shapes", { 0, 150 }, ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY);
+				for (int i = 0; i < shapes.size(); ++i)
+				{
+					Shape* shape = shapes[i];
+					ImGui::PushID(shape);
 
-			if (isEdited)
+					bool remove = false;
+					isEdited |= EditShape(*shape, remove);
+
+					if (remove)
+					{
+						shapes.erase(std::remove(shapes.begin(), shapes.end(), shape), shapes.end());
+						delete shape;
+						isEdited = true;
+						i--;
+					}
+
+					ImGui::PopID();
+				}
+				ImGui::EndChild();
+
+				if (isEdited)
+				{
+					BindShapes(shapes, shader);
+					hasMoved = true;
+				}
+
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Camera"))
 			{
-				BindShapes(shapes, shader);
-				hasMoved = true;
-			}
-		}
+				ImGui::SliderFloat("Speed", &cam.speed, 0.01f, 100.0f);
 
-		if (ImGui::CollapsingHeader("Rendering"))
-		{
-			if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
+				if (ImGui::SliderFloat("FOV", &cam.fov, 0.01f, 179.99f))
+					hasMoved = true;
+
+				if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &cam.origin.x, 3, 0.1f))
+					hasMoved = true;
+
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Rendering"))
 			{
-				shader.setUniform("samples", (int)perPixelSamples);
-				cumulativeFrameCount = 0;
-				hasMoved = true;
+				sf::Vector2u res(w, h);
+				bool resChanged = ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f);
+
+				if (ImGui::Button("Use Window Resolution"))
+				{
+					res.x = window.getSize().x;
+					res.y = window.getSize().y;
+					resChanged = true;
+				}
+
+				if (resChanged)
+				{
+					res.x = std::max(1u, res.x);
+					res.y = std::max(1u, res.y);
+
+					w = res.x;
+					h = res.y;
+					dim = w * h;
+
+					sW = window.getSize().x;
+					sH = window.getSize().y;
+
+					scaleW = (double)sW / (double)w;
+					scaleH = (double)sH / (double)h;
+
+					delete[] render;
+					render = new Color[dim];
+					for (int i = 0; i < dim; i++)
+						render[i] = Color();
+
+					renderImg = sf::Image({ w, h }, sf::Color::Black);
+					displayImg = sf::Image({ w, h }, sf::Color::Black);
+
+					renderTex = sf::RenderTexture({ w, h });
+
+					tex = sf::Texture(sf::Vector2u(w, h));
+					displayTex = sf::Texture(sf::Vector2u(w, h));
+
+					sprite = sf::Sprite(tex);
+					displaySprite = sf::Sprite(displayTex);
+					displaySprite.setScale({ (float)scaleW, (float)scaleH });
+
+					shader.setUniform("imgW", (int)w);
+					shader.setUniform("imgH", (int)h);
+
+					windowSize = sf::Vector2i(sW, sH);
+
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
+				{
+					shader.setUniform("samples", (int)perPixelSamples);
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
+				{
+					shader.setUniform("maxBounces", (int)maxBounces);
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::Checkbox("High-quality Render", &realRender))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::Checkbox("Cumulative Lighting", &cumulativeLighting))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::Checkbox("Randomize Sample Directions", &randomizeSampleDir))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::Checkbox("Keep Sample Directions Constant", &keepConstant))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				ImGui::Checkbox("Disable Lighting", &disableLighting);
+
+				ImGui::Checkbox("View Bounds", &viewBounds);
+
+				ImGui::EndTabItem();
 			}
 
-			if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
-			{
-				shader.setUniform("maxBounces", (int)maxBounces);
-				cumulativeFrameCount = 0;
-				hasMoved = true;
-			}
-
-			ImGui::Checkbox("Disable Lighting", &disableLighting);
-			ImGui::Checkbox("View Bounds", &viewBounds);
+			ImGui::EndTabBar();
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape))
@@ -609,9 +725,6 @@ int main()
 		{
 			displaySprite.setTexture(renderTex.getTexture());
 		}
-
-		if (ImGui::Button("Quit"))
-			window.close();
 
 		ImGui::End();
 
