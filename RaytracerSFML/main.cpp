@@ -381,7 +381,7 @@ int main()
 
 		ImGui::Begin("Debug");
 
-		guiFocused = ImGui::IsWindowFocused();
+		guiFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		guiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
 		if (ImGui::Button("Snapshot"))
