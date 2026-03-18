@@ -141,6 +141,7 @@ static bool EditShape(Shape &shape, bool &remove)
 	return isEdited;
 }
 
+
 int main()
 {
 	if (!sf::Shader::isAvailable())
@@ -164,14 +165,6 @@ int main()
 	if (!ImGui::SFML::Init(window))
 		std::cout << "Failed to initialize ImGui-SFML" << std::endl;
 
-	unsigned int
-		sW = window.getSize().x,
-		sH = window.getSize().y;
-
-	double
-		scaleW = (double)sW / (double)w,
-		scaleH = (double)sH / (double)h;
-
 	Color* render = new Color[dim];
 	for (int i = 0; i < dim; i++)
 		render[i] = Color();
@@ -185,7 +178,6 @@ int main()
 	sf::Texture tex(sf::Vector2u(w, h)), displayTex(sf::Vector2u(w, h));
 
 	sf::Sprite sprite(tex), displaySprite(displayTex);
-	displaySprite.setScale({ (float)scaleW, (float)scaleH });
 
 	sf::Shader shader;
 	if (!shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment))
@@ -197,7 +189,7 @@ int main()
 	sf::Clock clock, imClock;
 	double lT = 0.0, tT = 0.0, dT = 0.0;
 
-	sf::Vector2i deltas, windowPos, windowSize(window.getSize());
+	sf::Vector2i deltas, windowPos, windowSize({(int)w, (int)h});
 
 	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds;
 	unsigned int perPixelSamples, maxBounces;
@@ -344,6 +336,41 @@ int main()
 					hasMoved = true;
 			}
 
+			if (event.is<sf::Event::Resized>())
+			{
+				auto eventSubtype = event.getIf<sf::Event::Resized>();
+
+				w = eventSubtype->size.x;
+				h = eventSubtype->size.y;
+				dim = w * h;
+
+				window.setView(sf::View({ (float)w * 0.5f, (float)h * 0.5f }, { (float)w, (float)h }));
+
+				delete[] render;
+				render = new Color[dim];
+				for (int i = 0; i < dim; i++)
+					render[i] = Color();
+
+				renderImg = sf::Image({ w, h }, sf::Color::Black);
+				displayImg = sf::Image({ w, h }, sf::Color::Black);
+
+				renderTex = sf::RenderTexture({ w, h });
+
+				tex = sf::Texture(sf::Vector2u(w, h));
+				displayTex = sf::Texture(sf::Vector2u(w, h));
+
+				sprite = sf::Sprite(tex);
+				displaySprite = sf::Sprite(displayTex);
+
+				shader.setUniform("imgW", (int)w);
+				shader.setUniform("imgH", (int)h);
+
+				windowSize = sf::Vector2i(w, h);
+
+				cumulativeFrameCount = 0;
+				hasMoved = true;
+			}
+
 			if (event.is<sf::Event::Closed>())
 			{
 				window.close();
@@ -469,54 +496,11 @@ int main()
 			if (ImGui::BeginTabItem("Rendering"))
 			{
 				sf::Vector2u res(w, h);
-				bool resChanged = ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f);
-
-				if (ImGui::Button("Use Window Resolution"))
-				{
-					res.x = window.getSize().x;
-					res.y = window.getSize().y;
-					resChanged = true;
-				}
-
-				if (resChanged)
+				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f))
 				{
 					res.x = std::max(1u, res.x);
 					res.y = std::max(1u, res.y);
-
-					w = res.x;
-					h = res.y;
-					dim = w * h;
-
-					sW = window.getSize().x;
-					sH = window.getSize().y;
-
-					scaleW = (double)sW / (double)w;
-					scaleH = (double)sH / (double)h;
-
-					delete[] render;
-					render = new Color[dim];
-					for (int i = 0; i < dim; i++)
-						render[i] = Color();
-
-					renderImg = sf::Image({ w, h }, sf::Color::Black);
-					displayImg = sf::Image({ w, h }, sf::Color::Black);
-
-					renderTex = sf::RenderTexture({ w, h });
-
-					tex = sf::Texture(sf::Vector2u(w, h));
-					displayTex = sf::Texture(sf::Vector2u(w, h));
-
-					sprite = sf::Sprite(tex);
-					displaySprite = sf::Sprite(displayTex);
-					displaySprite.setScale({ (float)scaleW, (float)scaleH });
-
-					shader.setUniform("imgW", (int)w);
-					shader.setUniform("imgH", (int)h);
-
-					windowSize = sf::Vector2i(sW, sH);
-
-					cumulativeFrameCount = 0;
-					hasMoved = true;
+					window.setSize(res);
 				}
 
 				if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
