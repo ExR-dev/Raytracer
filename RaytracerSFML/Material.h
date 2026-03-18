@@ -16,7 +16,7 @@ struct Material
 	float
 		albedoReflectivity = 0,
 		specularReflectivity = 0,
-		reflectiveIndex = 1;
+		reflectiveIndex = riGlass;
 
 	void Bind(const std::string& shapeName, sf::Shader& shader, int index) const
 	{

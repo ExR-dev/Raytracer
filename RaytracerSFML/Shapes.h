@@ -12,7 +12,9 @@ struct Shape
 
 struct ShapeAABB : Shape
 {
-	sf::Glsl::Vec3 min, max;
+	sf::Glsl::Vec3 
+		min = sf::Glsl::Vec3(-1, -1, -1),
+		max = sf::Glsl::Vec3(1, 1, 1);
 
 	void Dummy() const override {}
 
@@ -22,7 +24,12 @@ struct ShapeAABB : Shape
 
 struct ShapeOBB : Shape
 {
-	sf::Glsl::Vec3 center, halfLength, xAxis, yAxis, zAxis;
+	sf::Glsl::Vec3 
+		center = sf::Glsl::Vec3(0, 0, 0),
+		halfLength = sf::Glsl::Vec3(1, 1, 1),
+		xAxis = sf::Glsl::Vec3(1, 0, 0),
+		yAxis = sf::Glsl::Vec3(0, 1, 0),
+		zAxis = sf::Glsl::Vec3(0, 0, 1);
 
 	void Dummy() const override {}
 
@@ -32,8 +39,8 @@ struct ShapeOBB : Shape
 
 struct ShapeSphere : Shape
 {
-	sf::Glsl::Vec3 pos;
-	float rad;
+	sf::Glsl::Vec3 pos = sf::Glsl::Vec3(0, 0, 0);
+	float rad = 1;
 
 	void Dummy() const override {}
 
@@ -43,7 +50,10 @@ struct ShapeSphere : Shape
 
 struct ShapeTri : Shape
 {
-	sf::Glsl::Vec3 v1, v2, v3;
+	sf::Glsl::Vec3 
+		v1 = sf::Glsl::Vec3(0, 0, 0),
+		v2 = sf::Glsl::Vec3(0, 1, 0),
+		v3 = sf::Glsl::Vec3(1, 0, 0);
 
 	void Dummy() const override {}
 
@@ -53,7 +63,9 @@ struct ShapeTri : Shape
 
 struct ShapePlane : Shape
 {
-	sf::Glsl::Vec3 center, normal;
+	sf::Glsl::Vec3 
+		center = sf::Glsl::Vec3(0, 0, 0),
+		normal = sf::Glsl::Vec3(0, 1, 0);
 
 	void Dummy() const override {}
 

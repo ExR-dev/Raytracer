@@ -14,8 +14,8 @@
 #include <cmath>
 
 constexpr unsigned int
-	w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ /*960,*/ 1280, /*1920,*/
-	h = /*45,*/ /*90, */ /*180,*/ /*360,*/ /*540,*/ 720,  /*1080,*/
+	w = /*80,*/ /*160,*/ /*320,*/ /*640,*/ /*960,*/ /*1280,*/ 1920,
+	h = /*45,*/ /*90, */ /*180,*/ /*360,*/ /*540,*/ /*720, */ 1080,
 	dim = w * h;
 
 struct Cam
@@ -47,6 +47,102 @@ struct Cam
 	}
 };
 
+
+static bool EditMaterial(Material &mat)
+{
+	bool isEdited = false;
+
+	if (ImGui::TreeNode("Material"))
+	{
+		ImGuiColorEditFlags flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
+		isEdited |= ImGui::ColorEdit4("Albedo", &mat.albedo.x, flags);
+		isEdited |= ImGui::ColorEdit4("Specular", &mat.specular.x, flags);
+		isEdited |= ImGui::ColorEdit4("Emission", &mat.emission.x, flags);
+		isEdited |= ImGui::ColorEdit3("Absorption", &mat.absorption.x, flags);
+		isEdited |= ImGui::DragFloat("Absorption Offset", &mat.absorption.w, 0.01f);
+
+		isEdited |= ImGui::DragFloat("Albedo Reflectivity", &mat.albedoReflectivity, 0.01f, 0.0f, 1.0f);
+		isEdited |= ImGui::DragFloat("Specular Reflectivity", &mat.specularReflectivity, 0.01f, 0.0f, 1.0f);
+		isEdited |= ImGui::DragFloat("Reflective Index", &mat.reflectiveIndex, 0.01f, 0.0f);
+
+		ImGui::TreePop();
+	}
+
+	return isEdited;
+}
+
+static bool EditShape(Shape &shape, bool &remove)
+{
+	bool isEdited = false;
+	bool isOpen = false;
+
+	if (auto* aabb = dynamic_cast<ShapeAABB*>(&shape))
+	{
+		isOpen = ImGui::TreeNode("AABB");
+
+		if (isOpen)
+		{
+			isEdited |= ImGui::DragFloat3("Min", &aabb->min.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Max", &aabb->max.x, 0.1f);
+		}
+	}
+	else if (auto* obb = dynamic_cast<ShapeOBB*>(&shape))
+	{
+		isOpen = ImGui::TreeNode("OBB");
+
+		if (isOpen)
+		{
+			isEdited |= ImGui::DragFloat3("Center", &obb->center.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Half Extents", &obb->halfLength.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("X-Axis", &obb->xAxis.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Y-Axis", &obb->yAxis.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Z-Axis", &obb->zAxis.x, 0.1f);
+		}
+	}
+	else if (auto* sphere = dynamic_cast<ShapeSphere*>(&shape))
+	{
+		isOpen = ImGui::TreeNode("Sphere");
+
+		if (isOpen)
+		{
+			isEdited |= ImGui::DragFloat3("Position", &sphere->pos.x, 0.1f);
+			isEdited |= ImGui::DragFloat("Radius", &sphere->rad, 0.1f);
+		}
+	}
+	else if (auto* tri = dynamic_cast<ShapeTri*>(&shape))
+	{
+		isOpen = ImGui::TreeNode("Triangle");
+
+		if (isOpen)
+		{
+			isEdited |= ImGui::DragFloat3("Vertex 1", &tri->v1.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Vertex 2", &tri->v2.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Vertex 3", &tri->v3.x, 0.1f);
+		}
+	}
+	else if (auto* plane = dynamic_cast<ShapePlane*>(&shape))
+	{
+		isOpen = ImGui::TreeNode("Plane");
+
+		if (isOpen)
+		{
+			isEdited |= ImGui::DragFloat3("Center", &plane->center.x, 0.1f);
+			isEdited |= ImGui::DragFloat3("Normal", &plane->normal.x, 0.1f);
+		}
+	}
+
+	if (isOpen)
+	{
+		isEdited |= EditMaterial(shape.mat);
+
+		if (ImGui::Button("Remove"))
+			remove = true;
+
+		ImGui::TreePop();
+	}
+
+	return isEdited;
+}
 
 int main()
 {
@@ -264,6 +360,95 @@ int main()
 
 			if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &cam.origin.x, 3, 0.1f))
 				hasMoved = true;
+		}
+
+		if (ImGui::CollapsingHeader("Scene"))
+		{
+			bool isEdited = false;
+
+			enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
+			static ShapeType currSelectedShape = ShapeType::AABB;
+
+			ImGui::Combo("Shape Type", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
+
+			ImGui::SameLine();
+			if (ImGui::Button("Add"))
+			{
+				isEdited = true;
+
+				Shape* newShape;
+				switch (currSelectedShape)
+				{
+				case ShapeType::AABB:
+					newShape = new ShapeAABB;
+					break;
+				case ShapeType::OBB:
+					newShape = new ShapeOBB;
+					break;
+				case ShapeType::Sphere:
+					newShape = new ShapeSphere;
+					break;
+				case ShapeType::Tri:
+					newShape = new ShapeTri;
+					break;
+				case ShapeType::Plane:
+					newShape = new ShapePlane;
+					break;
+				default:
+					newShape = new ShapeAABB;
+				}
+
+				shapes.push_back(newShape);
+				BindShapes(shapes, shader);
+				hasMoved = true;
+			}
+
+			ImGui::BeginChild("Shapes", { 0, 150 }, ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY);
+			for (int i = 0; i < shapes.size(); ++i)
+			{
+				Shape* shape = shapes[i];
+				ImGui::PushID(shape);
+
+				bool remove = false;
+				isEdited |= EditShape(*shape, remove);
+
+				if (remove)
+				{
+					shapes.erase(std::remove(shapes.begin(), shapes.end(), shape), shapes.end());
+					delete shape;
+					isEdited = true;
+					i--;
+				}
+
+				ImGui::PopID();
+			}
+			ImGui::EndChild();
+
+			if (isEdited)
+			{
+				BindShapes(shapes, shader);
+				hasMoved = true;
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Rendering"))
+		{
+			if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
+			{
+				shader.setUniform("samples", (int)perPixelSamples);
+				cumulativeFrameCount = 0;
+				hasMoved = true;
+			}
+
+			if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
+			{
+				shader.setUniform("maxBounces", (int)maxBounces);
+				cumulativeFrameCount = 0;
+				hasMoved = true;
+			}
+
+			ImGui::Checkbox("Disable Lighting", &disableLighting);
+			ImGui::Checkbox("View Bounds", &viewBounds);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape))
