@@ -1,4 +1,29 @@
 {
+    "cam": {
+        "fov": 38.875999450683597,
+        "perspective": true,
+        "speed": 5.0,
+        "origin": [
+            0.0,
+            5.0,
+            -14.8
+        ],
+        "fwd": [
+            0.0,
+            0.0,
+            1.0
+        ],
+        "right": [
+            1.0,
+            0.0,
+            0.0
+        ],
+        "up": [
+            0.0,
+            1.0,
+            0.0
+        ]
+    },
     "skybox": {
         "showSkybox": false,
         "peakCol": [

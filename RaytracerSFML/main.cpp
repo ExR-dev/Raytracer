@@ -24,21 +24,33 @@
 #include <cmath>
 
 
-static void SaveScene(const std::vector<Shape*>& shapes, const Skybox& skybox, const std::string& saveName)
+static void SaveScene(const std::vector<Shape*>& shapes, const RaytracerData& data, const std::string& saveName)
 {
 	rapidjson::Document doc;
 	doc.SetObject();
 
+	rapidjson::Value camObj(rapidjson::kObjectType);
+	{
+		camObj.AddMember("fov", data.cam.fov, doc.GetAllocator());
+		camObj.AddMember("perspective", data.cam.perspective, doc.GetAllocator());
+		camObj.AddMember("speed", data.cam.speed, doc.GetAllocator());
+		camObj.AddMember("origin", rapidjson::Value().SetArray().PushBack(data.cam.origin.x, doc.GetAllocator()).PushBack(data.cam.origin.y, doc.GetAllocator()).PushBack(data.cam.origin.z, doc.GetAllocator()), doc.GetAllocator());
+		camObj.AddMember("fwd", rapidjson::Value().SetArray().PushBack(data.cam.fwd.x, doc.GetAllocator()).PushBack(data.cam.fwd.y, doc.GetAllocator()).PushBack(data.cam.fwd.z, doc.GetAllocator()), doc.GetAllocator());
+		camObj.AddMember("right", rapidjson::Value().SetArray().PushBack(data.cam.right.x, doc.GetAllocator()).PushBack(data.cam.right.y, doc.GetAllocator()).PushBack(data.cam.right.z, doc.GetAllocator()), doc.GetAllocator());
+		camObj.AddMember("up", rapidjson::Value().SetArray().PushBack(data.cam.up.x, doc.GetAllocator()).PushBack(data.cam.up.y, doc.GetAllocator()).PushBack(data.cam.up.z, doc.GetAllocator()), doc.GetAllocator());
+	}
+	doc.AddMember("cam", camObj, doc.GetAllocator());
+
 	rapidjson::Value skyboxObj(rapidjson::kObjectType);
 	{
-		skyboxObj.AddMember("showSkybox", skybox.showSkybox, doc.GetAllocator());
-		skyboxObj.AddMember("peakCol", rapidjson::Value().SetArray().PushBack(skybox.peakCol.x, doc.GetAllocator()).PushBack(skybox.peakCol.y, doc.GetAllocator()).PushBack(skybox.peakCol.z, doc.GetAllocator()), doc.GetAllocator());
-		skyboxObj.AddMember("horizonCol", rapidjson::Value().SetArray().PushBack(skybox.horizonCol.x, doc.GetAllocator()).PushBack(skybox.horizonCol.y, doc.GetAllocator()).PushBack(skybox.horizonCol.z, doc.GetAllocator()), doc.GetAllocator());
-		skyboxObj.AddMember("voidCol", rapidjson::Value().SetArray().PushBack(skybox.voidCol.x, doc.GetAllocator()).PushBack(skybox.voidCol.y, doc.GetAllocator()).PushBack(skybox.voidCol.z, doc.GetAllocator()), doc.GetAllocator());
-		skyboxObj.AddMember("sunCol", rapidjson::Value().SetArray().PushBack(skybox.sunCol.x, doc.GetAllocator()).PushBack(skybox.sunCol.y, doc.GetAllocator()).PushBack(skybox.sunCol.z, doc.GetAllocator()), doc.GetAllocator());
-		skyboxObj.AddMember("sunDir", rapidjson::Value().SetArray().PushBack(skybox.sunDir.x, doc.GetAllocator()).PushBack(skybox.sunDir.y, doc.GetAllocator()).PushBack(skybox.sunDir.z, doc.GetAllocator()), doc.GetAllocator());
-		skyboxObj.AddMember("sunSize", skybox.sunSize, doc.GetAllocator());
-		skyboxObj.AddMember("sunFlare", skybox.sunFlare, doc.GetAllocator());
+		skyboxObj.AddMember("showSkybox", data.skybox.showSkybox, doc.GetAllocator());
+		skyboxObj.AddMember("peakCol", rapidjson::Value().SetArray().PushBack(data.skybox.peakCol.x, doc.GetAllocator()).PushBack(data.skybox.peakCol.y, doc.GetAllocator()).PushBack(data.skybox.peakCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("horizonCol", rapidjson::Value().SetArray().PushBack(data.skybox.horizonCol.x, doc.GetAllocator()).PushBack(data.skybox.horizonCol.y, doc.GetAllocator()).PushBack(data.skybox.horizonCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("voidCol", rapidjson::Value().SetArray().PushBack(data.skybox.voidCol.x, doc.GetAllocator()).PushBack(data.skybox.voidCol.y, doc.GetAllocator()).PushBack(data.skybox.voidCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("sunCol", rapidjson::Value().SetArray().PushBack(data.skybox.sunCol.x, doc.GetAllocator()).PushBack(data.skybox.sunCol.y, doc.GetAllocator()).PushBack(data.skybox.sunCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("sunDir", rapidjson::Value().SetArray().PushBack(data.skybox.sunDir.x, doc.GetAllocator()).PushBack(data.skybox.sunDir.y, doc.GetAllocator()).PushBack(data.skybox.sunDir.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("sunSize", data.skybox.sunSize, doc.GetAllocator());
+		skyboxObj.AddMember("sunFlare", data.skybox.sunFlare, doc.GetAllocator());
 	}
 	doc.AddMember("skybox", skyboxObj, doc.GetAllocator());
 
@@ -109,7 +121,7 @@ static void SaveScene(const std::vector<Shape*>& shapes, const Skybox& skybox, c
 	}
 }
 
-static std::vector<Shape*> LoadScene(const std::string& fileName, std::vector<Shape*> &shapes, Skybox& skybox)
+static std::vector<Shape*> LoadScene(const std::string& fileName, std::vector<Shape*> &shapes, RaytracerData& data)
 {
 	shapes.clear();
 
@@ -130,30 +142,56 @@ static std::vector<Shape*> LoadScene(const std::string& fileName, std::vector<Sh
 		return shapes;
 	}
 
+	if (doc.HasMember("cam") && doc["cam"].IsObject())
+	{
+		const auto& camObj = doc["cam"];
+		if (camObj.HasMember("fov") && camObj["fov"].IsFloat())
+			data.cam.fov = camObj["fov"].GetFloat();
+		if (camObj.HasMember("perspective") && camObj["perspective"].IsBool())
+			data.cam.perspective = camObj["perspective"].GetBool();
+		if (camObj.HasMember("speed") && camObj["speed"].IsFloat())
+			data.cam.speed = camObj["speed"].GetFloat();
+		if (camObj.HasMember("origin") && camObj["origin"].IsArray() && camObj["origin"].Size() == 3)
+			data.cam.origin = Vec3(camObj["origin"][0].GetFloat(), camObj["origin"][1].GetFloat(), camObj["origin"][2].GetFloat());
+		if (camObj.HasMember("fwd") && camObj["fwd"].IsArray() && camObj["fwd"].Size() == 3)
+			data.cam.fwd = Vec3(camObj["fwd"][0].GetFloat(), camObj["fwd"][1].GetFloat(), camObj["fwd"][2].GetFloat());
+		if (camObj.HasMember("right") && camObj["right"].IsArray() && camObj["right"].Size() == 3)
+			data.cam.right = Vec3(camObj["right"][0].GetFloat(), camObj["right"][1].GetFloat(), camObj["right"][2].GetFloat());
+		if (camObj.HasMember("up") && camObj["up"].IsArray() && camObj["up"].Size() == 3)
+			data.cam.up = Vec3(camObj["up"][0].GetFloat(), camObj["up"][1].GetFloat(), camObj["up"][2].GetFloat());
+		data.cam.UpdateRotation();
+	}
+	else
+	{
+		Viewport prevViewport = data.cam.viewport; // Preserve viewport settings
+		data.cam = Cam(); // Reset to default if camera data is missing
+		data.cam.viewport = prevViewport; // Restore viewport settings
+	}
+
 	if (doc.HasMember("skybox") && doc["skybox"].IsObject())
 	{
 		const auto& skyboxObj = doc["skybox"];
 
 		if (skyboxObj.HasMember("showSkybox") && skyboxObj["showSkybox"].IsBool())
-			skybox.showSkybox = skyboxObj["showSkybox"].GetBool();
+			data.skybox.showSkybox = skyboxObj["showSkybox"].GetBool();
 		if (skyboxObj.HasMember("peakCol") && skyboxObj["peakCol"].IsArray() && skyboxObj["peakCol"].Size() == 3)
-			skybox.peakCol = sf::Glsl::Vec3(skyboxObj["peakCol"][0].GetFloat(), skyboxObj["peakCol"][1].GetFloat(), skyboxObj["peakCol"][2].GetFloat());
+			data.skybox.peakCol = sf::Glsl::Vec3(skyboxObj["peakCol"][0].GetFloat(), skyboxObj["peakCol"][1].GetFloat(), skyboxObj["peakCol"][2].GetFloat());
 		if (skyboxObj.HasMember("horizonCol") && skyboxObj["horizonCol"].IsArray() && skyboxObj["horizonCol"].Size() == 3)
-			skybox.horizonCol = sf::Glsl::Vec3(skyboxObj["horizonCol"][0].GetFloat(), skyboxObj["horizonCol"][1].GetFloat(), skyboxObj["horizonCol"][2].GetFloat());
+			data.skybox.horizonCol = sf::Glsl::Vec3(skyboxObj["horizonCol"][0].GetFloat(), skyboxObj["horizonCol"][1].GetFloat(), skyboxObj["horizonCol"][2].GetFloat());
 		if (skyboxObj.HasMember("voidCol") && skyboxObj["voidCol"].IsArray() && skyboxObj["voidCol"].Size() == 3)
-			skybox.voidCol = sf::Glsl::Vec3(skyboxObj["voidCol"][0].GetFloat(), skyboxObj["voidCol"][1].GetFloat(), skyboxObj["voidCol"][2].GetFloat());
+			data.skybox.voidCol = sf::Glsl::Vec3(skyboxObj["voidCol"][0].GetFloat(), skyboxObj["voidCol"][1].GetFloat(), skyboxObj["voidCol"][2].GetFloat());
 		if (skyboxObj.HasMember("sunCol") && skyboxObj["sunCol"].IsArray() && skyboxObj["sunCol"].Size() == 3)
-			skybox.sunCol = sf::Glsl::Vec3(skyboxObj["sunCol"][0].GetFloat(), skyboxObj["sunCol"][1].GetFloat(), skyboxObj["sunCol"][2].GetFloat());
+			data.skybox.sunCol = sf::Glsl::Vec3(skyboxObj["sunCol"][0].GetFloat(), skyboxObj["sunCol"][1].GetFloat(), skyboxObj["sunCol"][2].GetFloat());
 		if (skyboxObj.HasMember("sunDir") && skyboxObj["sunDir"].IsArray() && skyboxObj["sunDir"].Size() == 3)
-			skybox.sunDir = sf::Glsl::Vec3(skyboxObj["sunDir"][0].GetFloat(), skyboxObj["sunDir"][1].GetFloat(), skyboxObj["sunDir"][2].GetFloat());
+			data.skybox.sunDir = sf::Glsl::Vec3(skyboxObj["sunDir"][0].GetFloat(), skyboxObj["sunDir"][1].GetFloat(), skyboxObj["sunDir"][2].GetFloat());
 		if (skyboxObj.HasMember("sunSize") && skyboxObj["sunSize"].IsFloat())
-			skybox.sunSize = skyboxObj["sunSize"].GetFloat();
+			data.skybox.sunSize = skyboxObj["sunSize"].GetFloat();
 		if (skyboxObj.HasMember("sunFlare") && skyboxObj["sunFlare"].IsFloat())
-			skybox.sunFlare = skyboxObj["sunFlare"].GetFloat();
+			data.skybox.sunFlare = skyboxObj["sunFlare"].GetFloat();
 	}
 	else
 	{
-		skybox = Skybox(); // Reset to default if skybox data is missing
+		data.skybox = Skybox(); // Reset to default if skybox data is missing
 	}
 
 
@@ -410,7 +448,7 @@ int main()
 	sf::Sprite sprite(tex), displaySprite(displayTex);
 
 	std::vector<Shape*> shapes; 
-	LoadScene("Scene 1", shapes, rtData.skybox);
+	LoadScene("Scene 1", shapes, rtData);
 
 	sf::Vector2i deltas, windowPos;
 
@@ -449,9 +487,14 @@ int main()
 	sf::Clock clock, imClock;
 	double lT = 0.0, tT = 0.0, dT = 0.0;
 
+	bool lockFPS = false;
+
 	unsigned int
 		cumulativeFrameCount = 0,
-		totFrames = 0;
+		totFrames = 0,
+		maxFPS = 60;
+
+	double timeToSleep = 0.0;
 
 	bool 
 		guiFocused = false, 
@@ -623,7 +666,7 @@ int main()
 				static std::string saveName = "Scene 1";
 
 				if (ImGui::Button("Save"))
-					SaveScene(shapes, rtData.skybox, saveName);
+					SaveScene(shapes, rtData, saveName);
 
 				ImGui::SameLine();
 				ImGui::InputText("##SaveName", &saveName);
@@ -639,7 +682,7 @@ int main()
 						for (Shape* shape : shapes)
 							delete shape;
 
-						LoadScene(sceneList[currSceneIndex], shapes, rtData.skybox);
+						LoadScene(sceneList[currSceneIndex], shapes, rtData);
 						isEdited = true;
 					}
 				}
@@ -772,6 +815,21 @@ int main()
 					res.x = std::max(1u, res.x);
 					res.y = std::max(1u, res.y);
 					window.setSize(res);
+				}
+
+				if (ImGui::Checkbox("Lock FPS", &lockFPS))
+					timeToSleep = (lockFPS) ? ((1.0 / (double)maxFPS) - dT) : 0.0;
+
+				if (lockFPS)
+				{
+					ImGui::SameLine();
+
+					int maxFPSint = (int)maxFPS;
+					if (ImGui::DragInt("##MaxFPS", &maxFPSint, 0.5f, 10))
+					{
+						maxFPS = (unsigned int)std::max(10, maxFPSint);
+						timeToSleep = (1.0 / (double)maxFPS) - dT;
+					}
 				}
 
 				if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
@@ -980,6 +1038,18 @@ int main()
 
 		cumulativeFrameCount++;
 		totFrames++;
+
+		if (!lockFPS)
+			continue;
+
+		double minDT = 1.0 / (double)maxFPS;
+
+		if (dT < minDT)
+			timeToSleep += (minDT - dT) * 0.9;
+		else if (dT > minDT)
+			timeToSleep *= 0.98;
+
+		sf::sleep(sf::seconds(timeToSleep));
 	}
 
 	for (Shape* shape : shapes)
