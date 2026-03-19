@@ -649,14 +649,14 @@ int main()
 				ImGui::SameLine();
 				ImGui::Combo("##SceneList", &currSceneIndex, comboFunc, &sceneList, sceneList.size());
 
+				ImGui::Separator();
+				ImGui::Dummy({0, 5});
+
 
 				// Shape Type Selection and Addition
 				enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
 				static ShapeType currSelectedShape = ShapeType::AABB;
 
-				ImGui::Combo("##ShapeType", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
-
-				ImGui::SameLine();
 				if (ImGui::Button("Add"))
 				{
 					isEdited = true;
@@ -687,6 +687,10 @@ int main()
 					BindShapes(shapes, shader);
 					hasMoved = true;
 				}
+
+				ImGui::SameLine();
+				ImGui::Combo("##ShapeType", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
+
 
 				// Shape List and Editing
 				ImGui::BeginChild("Shapes", ImGui::GetContentRegionAvail(), ImGuiChildFlags_Borders);
