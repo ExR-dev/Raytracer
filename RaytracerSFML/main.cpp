@@ -2,6 +2,7 @@
 #include "Vec3.h"
 #include "Graphics.h"
 #include "Shapes.h"
+#include "ShaderUniformTypes.h"
 
 #include "SFML/Graphics/Shader.hpp"
 #include "SFML/Graphics.hpp"
@@ -23,40 +24,24 @@
 #include <cmath>
 
 
-struct Cam
-{
-	float fov;
-	bool perspective;
-	float speed;
-
-	Vec3
-		origin,
-		fwd, right, up;
-
-
-	Cam(float fov, bool perspective, float speed, const Vec3& origin, const Vec3& fwd) :
-		fov(fov), perspective(perspective), speed(speed), origin(origin), fwd(fwd)
-	{
-		UpdateRotation();
-	}
-
-	void UpdateRotation()
-	{
-		fwd.Normalize();
-
-		right = fwd.Cross({ 0, -1, 0 });
-		right.Normalize();
-
-		up = fwd.Cross(right);
-		up.Normalize();
-	}
-};
-
-
-static void SaveScene(const std::vector<Shape*>& shapes, const std::string& saveName)
+static void SaveScene(const std::vector<Shape*>& shapes, const Skybox& skybox, const std::string& saveName)
 {
 	rapidjson::Document doc;
 	doc.SetObject();
+
+	rapidjson::Value skyboxObj(rapidjson::kObjectType);
+	{
+		skyboxObj.AddMember("showSkybox", skybox.showSkybox, doc.GetAllocator());
+		skyboxObj.AddMember("peakCol", rapidjson::Value().SetArray().PushBack(skybox.peakCol.x, doc.GetAllocator()).PushBack(skybox.peakCol.y, doc.GetAllocator()).PushBack(skybox.peakCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("horizonCol", rapidjson::Value().SetArray().PushBack(skybox.horizonCol.x, doc.GetAllocator()).PushBack(skybox.horizonCol.y, doc.GetAllocator()).PushBack(skybox.horizonCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("voidCol", rapidjson::Value().SetArray().PushBack(skybox.voidCol.x, doc.GetAllocator()).PushBack(skybox.voidCol.y, doc.GetAllocator()).PushBack(skybox.voidCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("sunCol", rapidjson::Value().SetArray().PushBack(skybox.sunCol.x, doc.GetAllocator()).PushBack(skybox.sunCol.y, doc.GetAllocator()).PushBack(skybox.sunCol.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("sunDir", rapidjson::Value().SetArray().PushBack(skybox.sunDir.x, doc.GetAllocator()).PushBack(skybox.sunDir.y, doc.GetAllocator()).PushBack(skybox.sunDir.z, doc.GetAllocator()), doc.GetAllocator());
+		skyboxObj.AddMember("sunSize", skybox.sunSize, doc.GetAllocator());
+		skyboxObj.AddMember("sunFlare", skybox.sunFlare, doc.GetAllocator());
+	}
+	doc.AddMember("skybox", skyboxObj, doc.GetAllocator());
+
 	rapidjson::Value shapesArr(rapidjson::kArrayType);
 
 	for (const auto* shape : shapes)
@@ -124,9 +109,9 @@ static void SaveScene(const std::vector<Shape*>& shapes, const std::string& save
 	}
 }
 
-static std::vector<Shape*> LoadScene(const std::string& fileName)
+static std::vector<Shape*> LoadScene(const std::string& fileName, std::vector<Shape*> &shapes, Skybox& skybox)
 {
-	std::vector<Shape*> shapes;
+	shapes.clear();
 
 	std::ifstream ifs("Scenes/" + fileName + ".json");
 	if (!ifs.is_open())
@@ -144,6 +129,33 @@ static std::vector<Shape*> LoadScene(const std::string& fileName)
 		std::cerr << "Failed to parse scene JSON: " << rapidjson::GetParseErrorFunc(doc.GetParseError()) << std::endl;
 		return shapes;
 	}
+
+	if (doc.HasMember("skybox") && doc["skybox"].IsObject())
+	{
+		const auto& skyboxObj = doc["skybox"];
+
+		if (skyboxObj.HasMember("showSkybox") && skyboxObj["showSkybox"].IsBool())
+			skybox.showSkybox = skyboxObj["showSkybox"].GetBool();
+		if (skyboxObj.HasMember("peakCol") && skyboxObj["peakCol"].IsArray() && skyboxObj["peakCol"].Size() == 3)
+			skybox.peakCol = sf::Glsl::Vec3(skyboxObj["peakCol"][0].GetFloat(), skyboxObj["peakCol"][1].GetFloat(), skyboxObj["peakCol"][2].GetFloat());
+		if (skyboxObj.HasMember("horizonCol") && skyboxObj["horizonCol"].IsArray() && skyboxObj["horizonCol"].Size() == 3)
+			skybox.horizonCol = sf::Glsl::Vec3(skyboxObj["horizonCol"][0].GetFloat(), skyboxObj["horizonCol"][1].GetFloat(), skyboxObj["horizonCol"][2].GetFloat());
+		if (skyboxObj.HasMember("voidCol") && skyboxObj["voidCol"].IsArray() && skyboxObj["voidCol"].Size() == 3)
+			skybox.voidCol = sf::Glsl::Vec3(skyboxObj["voidCol"][0].GetFloat(), skyboxObj["voidCol"][1].GetFloat(), skyboxObj["voidCol"][2].GetFloat());
+		if (skyboxObj.HasMember("sunCol") && skyboxObj["sunCol"].IsArray() && skyboxObj["sunCol"].Size() == 3)
+			skybox.sunCol = sf::Glsl::Vec3(skyboxObj["sunCol"][0].GetFloat(), skyboxObj["sunCol"][1].GetFloat(), skyboxObj["sunCol"][2].GetFloat());
+		if (skyboxObj.HasMember("sunDir") && skyboxObj["sunDir"].IsArray() && skyboxObj["sunDir"].Size() == 3)
+			skybox.sunDir = sf::Glsl::Vec3(skyboxObj["sunDir"][0].GetFloat(), skyboxObj["sunDir"][1].GetFloat(), skyboxObj["sunDir"][2].GetFloat());
+		if (skyboxObj.HasMember("sunSize") && skyboxObj["sunSize"].IsFloat())
+			skybox.sunSize = skyboxObj["sunSize"].GetFloat();
+		if (skyboxObj.HasMember("sunFlare") && skyboxObj["sunFlare"].IsFloat())
+			skybox.sunFlare = skyboxObj["sunFlare"].GetFloat();
+	}
+	else
+	{
+		skybox = Skybox(); // Reset to default if skybox data is missing
+	}
+
 
 	if (!doc.HasMember("shapes") || !doc["shapes"].IsArray())
 	{
@@ -366,49 +378,41 @@ int main()
 	if (!sf::Shader::isAvailable())
 		return 1;
 
-	unsigned int
-		w = 1280, 
-		h = 720,
-		dim = w * h;
 
 	unsigned int nextSnapshot = 0;
 
 	// Build Scene
-	Cam cam(
+	RaytracerData rtData;
+
+	rtData.cam = Cam(
 		75.0f, true, 5.0f,
 		Vec3(0.0, 5.0, -10.0),
-		Vec3(0.0, -0.531709431, 1.0).Normalize()
+		Vec3(0.0, -0.531709431, 1.0).Normalize(),
+		Viewport()
 	);
 
-	sf::RenderWindow window(sf::VideoMode({ w, h }), "SFML Window", sf::State::Windowed);
+	sf::RenderWindow window(sf::VideoMode(rtData.cam.viewport.ToVecU()), "SFML Window", sf::State::Windowed);
 	if (!ImGui::SFML::Init(window))
 		std::cout << "Failed to initialize ImGui-SFML" << std::endl;
 
-	Color* render = new Color[dim];
-	for (int i = 0; i < dim; i++)
+	Color* render = new Color[rtData.cam.viewport.dim];
+	for (int i = 0; i < rtData.cam.viewport.dim; i++)
 		render[i] = Color();
 
 	sf::Image
-		renderImg({ w, h }, sf::Color::Black),
-		displayImg({ w, h }, sf::Color::Black);
+		renderImg(rtData.cam.viewport.ToVecU(), sf::Color::Black),
+		displayImg(rtData.cam.viewport.ToVecU(), sf::Color::Black);
 
-	sf::RenderTexture renderTex({ w, h });
+	sf::RenderTexture renderTex(rtData.cam.viewport.ToVecU());
 
-	sf::Texture tex(sf::Vector2u(w, h)), displayTex(sf::Vector2u(w, h));
+	sf::Texture tex(rtData.cam.viewport.ToVecU()), displayTex(rtData.cam.viewport.ToVecU());
 
 	sf::Sprite sprite(tex), displaySprite(displayTex);
 
-	sf::Shader shader;
-	if (!shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment))
-	{
-		std::cerr << "Failed to load shader" << std::endl;
-		return -1;
-	}
+	std::vector<Shape*> shapes; 
+	LoadScene("Scene 1", shapes, rtData.skybox);
 
-	sf::Clock clock, imClock;
-	double lT = 0.0, tT = 0.0, dT = 0.0;
-
-	sf::Vector2i deltas, windowPos, windowSize({(int)w, (int)h});
+	sf::Vector2i deltas, windowPos;
 
 	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds;
 	unsigned int perPixelSamples, maxBounces;
@@ -416,7 +420,6 @@ int main()
 	{
 		keepConstant = false;
 		giveControl = false;
-		cam.fov = 75.0f;
 
 		cumulativeLighting = true;
 		realRender = false;
@@ -427,15 +430,24 @@ int main()
 		maxBounces = 6;
 	}
 
-	shader.setUniform("imgW", (int)w);
-	shader.setUniform("imgH", (int)h);
+
+	sf::Shader shader;
+	if (!shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment))
+	{
+		std::cerr << "Failed to load shader" << std::endl;
+		return -1;
+	}
+
+	rtData.BindAll(shader);
+
 	shader.setUniform("samples", (int)perPixelSamples);
 	shader.setUniform("maxBounces", (int)maxBounces);
 
-	std::vector<Shape*> shapes = LoadScene("Scene 1");
-
-	// Bind all shapes to shader
 	BindShapes(shapes, shader);
+
+
+	sf::Clock clock, imClock;
+	double lT = 0.0, tT = 0.0, dT = 0.0;
 
 	unsigned int
 		cumulativeFrameCount = 0,
@@ -475,10 +487,10 @@ int main()
 
 				if (eventSubtype->delta != 0.0f)
 				{
-					float lFov = cam.fov;
-					cam.fov = std::clamp(cam.fov - eventSubtype->delta, 0.01f, 179.99f);
+					float lFov = rtData.cam.fov;
+					rtData.cam.fov = std::clamp(rtData.cam.fov - eventSubtype->delta, 0.01f, 179.99f);
 
-					if (abs(cam.fov - lFov) > 0.000001)
+					if (abs(rtData.cam.fov - lFov) > 0.000001)
 						hasMoved = true;
 				}
 			}
@@ -540,32 +552,25 @@ int main()
 			{
 				auto eventSubtype = event.getIf<sf::Event::Resized>();
 
-				w = eventSubtype->size.x;
-				h = eventSubtype->size.y;
-				dim = w * h;
-
-				window.setView(sf::View({ (float)w * 0.5f, (float)h * 0.5f }, { (float)w, (float)h }));
+				rtData.cam.viewport = Viewport(eventSubtype->size.x, eventSubtype->size.y);
+				
+				window.setView(sf::View(rtData.cam.viewport.ToVecF().componentWiseMul({0.5f, 0.5f}), rtData.cam.viewport.ToVecF()));
 
 				delete[] render;
-				render = new Color[dim];
-				for (int i = 0; i < dim; i++)
+				render = new Color[rtData.cam.viewport.dim];
+				for (int i = 0; i < rtData.cam.viewport.dim; i++)
 					render[i] = Color();
 
-				renderImg = sf::Image({ w, h }, sf::Color::Black);
-				displayImg = sf::Image({ w, h }, sf::Color::Black);
+				renderImg = sf::Image(rtData.cam.viewport.ToVecU(), sf::Color::Black);
+				displayImg = sf::Image(rtData.cam.viewport.ToVecU(), sf::Color::Black);
 
-				renderTex = sf::RenderTexture({ w, h });
+				renderTex = sf::RenderTexture(rtData.cam.viewport.ToVecU());
 
-				tex = sf::Texture(sf::Vector2u(w, h));
-				displayTex = sf::Texture(sf::Vector2u(w, h));
+				tex = sf::Texture(rtData.cam.viewport.ToVecU());
+				displayTex = sf::Texture(rtData.cam.viewport.ToVecU());
 
 				sprite = sf::Sprite(tex);
 				displaySprite = sf::Sprite(displayTex);
-
-				shader.setUniform("imgW", (int)w);
-				shader.setUniform("imgH", (int)h);
-
-				windowSize = sf::Vector2i(w, h);
 
 				cumulativeFrameCount = 0;
 				hasMoved = true;
@@ -613,11 +618,12 @@ int main()
 			{
 				bool isEdited = false;
 
-				// Save and Load Scene
+				ImGui::SeparatorText("Saving/Loading");
+
 				static std::string saveName = "Scene 1";
 
 				if (ImGui::Button("Save"))
-					SaveScene(shapes, saveName);
+					SaveScene(shapes, rtData.skybox, saveName);
 
 				ImGui::SameLine();
 				ImGui::InputText("##SaveName", &saveName);
@@ -633,7 +639,7 @@ int main()
 						for (Shape* shape : shapes)
 							delete shape;
 
-						shapes = LoadScene(sceneList[currSceneIndex]);
+						LoadScene(sceneList[currSceneIndex], shapes, rtData.skybox);
 						isEdited = true;
 					}
 				}
@@ -649,9 +655,24 @@ int main()
 				ImGui::SameLine();
 				ImGui::Combo("##SceneList", &currSceneIndex, comboFunc, &sceneList, sceneList.size());
 
-				ImGui::Separator();
-				ImGui::Dummy({0, 5});
 
+				ImGui::SeparatorText("Scene Editing");
+
+				if (ImGui::TreeNode("Skybox"))
+				{
+					isEdited |= ImGui::Checkbox("Show Skybox", &rtData.skybox.showSkybox);
+
+					ImGuiColorEditFlags flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
+					isEdited |= ImGui::ColorEdit3("Peak Color", &rtData.skybox.peakCol.x, flags);
+					isEdited |= ImGui::ColorEdit3("Horizon Color", &rtData.skybox.horizonCol.x, flags);
+					isEdited |= ImGui::ColorEdit3("Void Color", &rtData.skybox.voidCol.x, flags);
+					isEdited |= ImGui::ColorEdit3("Sun Color", &rtData.skybox.sunCol.x, flags);
+					isEdited |= ImGui::DragFloat3("Sun Direction", &rtData.skybox.sunDir.x, 0.1f);
+					isEdited |= ImGui::DragFloat("Sun Size", &rtData.skybox.sunSize, 0.1f, 0.0f);
+					isEdited |= ImGui::DragFloat("Sun Flare", &rtData.skybox.sunFlare, 0.1f, 0.0f);
+
+					ImGui::TreePop();
+				}
 
 				// Shape Type Selection and Addition
 				enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
@@ -716,6 +737,7 @@ int main()
 
 				if (isEdited)
 				{
+					rtData.skybox.Bind(shader);
 					BindShapes(shapes, shader);
 					hasMoved = true;
 				}
@@ -725,20 +747,26 @@ int main()
 
 			if (ImGui::BeginTabItem("Camera"))
 			{
-				ImGui::SliderFloat("Speed", &cam.speed, 0.01f, 100.0f);
+				ImGui::SliderFloat("Speed", &rtData.cam.speed, 0.01f, 100.0f);
 
-				if (ImGui::SliderFloat("FOV", &cam.fov, 0.01f, 179.99f))
+				if (ImGui::SliderFloat("FOV", &rtData.cam.fov, 0.01f, 179.99f))
 					hasMoved = true;
 
-				if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &cam.origin.x, 3, 0.1f))
+				if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &rtData.cam.origin.x, 3, 0.1f))
 					hasMoved = true;
+
+				if (ImGui::DragScalarN("Forward", ImGuiDataType_Double, &rtData.cam.fwd.x, 3, 0.1f))
+				{
+					rtData.cam.UpdateRotation();
+					hasMoved = true;
+				}
 
 				ImGui::EndTabItem();
 			}
 
 			if (ImGui::BeginTabItem("Rendering"))
 			{
-				sf::Vector2u res(w, h);
+				sf::Vector2u res = rtData.cam.viewport.ToVecU();
 				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f))
 				{
 					res.x = std::max(1u, res.x);
@@ -799,27 +827,27 @@ int main()
 
 		if (giveControl)
 		{
-			double speedMult = (double)cam.speed * dT * (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ? 3.0 : 1.0);
+			double speedMult = (double)rtData.cam.speed * dT * (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ? 3.0 : 1.0);
 			speedMult /= (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) ? 6.0 : 1.0);
 
-			Vec3 camLOrigin = cam.origin;
-			Vec3 camLFwd = cam.fwd;
+			Vec3 camLOrigin = rtData.cam.origin;
+			Vec3 camLFwd = rtData.cam.fwd;
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
-				cam.origin += cam.fwd * speedMult;
+				rtData.cam.origin += rtData.cam.fwd * speedMult;
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
-				cam.origin -= cam.fwd * speedMult;
+				rtData.cam.origin -= rtData.cam.fwd * speedMult;
 
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
-				cam.origin += cam.right * speedMult;
+				rtData.cam.origin += rtData.cam.right * speedMult;
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
-				cam.origin -= cam.right * speedMult;
+				rtData.cam.origin -= rtData.cam.right * speedMult;
 
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space))
-				cam.origin += cam.up * speedMult;
+				rtData.cam.origin += rtData.cam.up * speedMult;
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X))
-				cam.origin -= cam.up * speedMult;
+				rtData.cam.origin -= rtData.cam.up * speedMult;
 
-			sf::Vector2i fixedPoint = windowPos + windowSize.componentWiseDiv({ 2, 2 });
+			sf::Vector2i fixedPoint = windowPos + rtData.cam.viewport.ToVecI().componentWiseDiv({ 2, 2 });
 
 			windowPos = window.getPosition();
 			deltas = fixedPoint - sf::Mouse::getPosition();
@@ -831,33 +859,33 @@ int main()
 				float sign = (float)deltas.y * -0.001f;
 				int verticality = (sign > 0) ? -1 : 1;
 
-				Vec3 offAngle = cam.fwd - Vec3(0, verticality, 0);
+				Vec3 offAngle = rtData.cam.fwd - Vec3(0, verticality, 0);
 				offAngle.NormalizeApprox();
 
-				cam.fwd = (
-					cam.fwd * cos(sign) +
-					cam.right.Cross(cam.fwd) * sin(sign) +
-					cam.right * cam.right.Dot(cam.fwd) * (1.0f - cos(sign))
-					);
+				rtData.cam.fwd = (
+					rtData.cam.fwd * cos(sign) +
+					rtData.cam.right.Cross(rtData.cam.fwd) * sin(sign) +
+					rtData.cam.right * rtData.cam.right.Dot(rtData.cam.fwd) * (1.0f - cos(sign))
+				);
 
-				if (offAngle.Dot(cam.fwd) <= 0)
-					cam.fwd = Vec3(0, verticality, 0) + offAngle * utils::MINVAL * 100.0;
+				if (offAngle.Dot(rtData.cam.fwd) <= 0)
+					rtData.cam.fwd = Vec3(0, verticality, 0) + offAngle * utils::MINVAL * 100.0;
 			}
 
-			if (deltas.x != 0 && abs(cam.fwd.y) != 1.0)
+			if (deltas.x != 0 && abs(rtData.cam.fwd.y) != 1.0)
 			{
 				float sign = (float)deltas.x * -0.001f;
 
-				cam.fwd = {
-					cam.fwd.x * cos(sign) + cam.fwd.z * sin(sign),
-					cam.fwd.y,
-					-cam.fwd.x * sin(sign) + cam.fwd.z * cos(sign)
+				rtData.cam.fwd = {
+					rtData.cam.fwd.x * cos(sign) + rtData.cam.fwd.z * sin(sign),
+					rtData.cam.fwd.y,
+					-rtData.cam.fwd.x * sin(sign) + rtData.cam.fwd.z * cos(sign)
 				};
 			}
 
-			cam.UpdateRotation();
+			rtData.cam.UpdateRotation();
 
-			if ((camLOrigin - cam.origin).MagSqr() > 0.000001 || (camLFwd - cam.fwd).MagSqr() > 0.000001)
+			if ((camLOrigin - rtData.cam.origin).MagSqr() > 0.000001 || (camLFwd - rtData.cam.fwd).MagSqr() > 0.000001)
 				hasMoved = true;
 		}
 
@@ -868,21 +896,21 @@ int main()
 
 			if (realRender)
 			{
-				for (int i = 0; i < dim; i++)
+				for (int i = 0; i < rtData.cam.viewport.dim; i++)
 				{
 					render[i] = Color();
-					renderImg.setPixel({ i % w, i / w }, { 0, 0, 0, 0 });
+					renderImg.setPixel({ i % rtData.cam.viewport.w, i / rtData.cam.viewport.w }, { 0, 0, 0, 0 });
 				}
 			}
 		}
 
 		if (realRender && cumulativeFrameCount > 0)
 		{
-			for (int i = 0; i < dim; i++)
+			for (int i = 0; i < rtData.cam.viewport.dim; i++)
 			{
 				unsigned int
-					x = i % w,
-					y = i / w;
+					x = i % rtData.cam.viewport.w,
+					y = i / rtData.cam.viewport.w;
 
 				double colorsCaptured = cumulativeFrameCount;
 
@@ -910,20 +938,10 @@ int main()
 		}
 
 		{
-			shader.setUniform("rndSeed", keepConstant ? 0 : (int)((long)utils::VeryRand(h * w, 4294967295u) - 2147483647));
+			rtData.BindContinuous(shader);
 
-			float
-				viewHeight = tanf((cam.fov / 2.0f) * (float)utils::PI / 180.0f) * 2.0f,
-				viewWidth = viewHeight / ((float)h / (float)w);
-
-			shader.setUniform("viewHeight", viewHeight);
-			shader.setUniform("viewWidth", viewWidth);
-
-			shader.setUniform("camPos", cam.origin.ToShader());
-			shader.setUniform("camFwd", cam.fwd.ToShader());
-			shader.setUniform("camUp", cam.up.ToShader());
-			shader.setUniform("camRight", cam.right.ToShader());
-
+			shader.setUniform("rndSeed", keepConstant ? 0 : (int)((long)utils::VeryRand(rtData.cam.viewport.h * rtData.cam.viewport.w, 4294967295u) - 2147483647));
+			
 			shader.setUniform("viewBounds", viewBounds);
 			shader.setUniform("realRender", realRender);
 			shader.setUniform("disableLighting", disableLighting);

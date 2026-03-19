@@ -186,6 +186,7 @@
     <ClInclude Include="External\rapidjson\writer.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="ShaderUniformTypes.h" />
     <ClInclude Include="Shapes.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Vec3.h" />

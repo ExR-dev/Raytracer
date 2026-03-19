@@ -193,7 +193,7 @@ struct Vec3
         return refraction;
     }
 
-    sf::Glsl::Vec3 ToShader()
+    sf::Glsl::Vec3 ToShader() const
     {
         return sf::Glsl::Vec3(
             (float)x, 
