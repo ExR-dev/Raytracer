@@ -9,6 +9,7 @@
 #include "imgui.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "imgui-SFML.h"
+#include "ImGuiUtils.h"
 
 #include "document.h"
 #include "writer.h"
@@ -321,15 +322,24 @@ static bool EditMaterial(Material &mat)
 	if (ImGui::TreeNode("Material"))
 	{
 		ImGuiColorEditFlags flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
-		isEdited |= ImGui::ColorEdit4("Albedo", &mat.albedo.x, flags);
-		isEdited |= ImGui::ColorEdit4("Specular", &mat.specular.x, flags);
-		isEdited |= ImGui::ColorEdit4("Emission", &mat.emission.x, flags);
-		isEdited |= ImGui::ColorEdit3("Absorption", &mat.absorption.x, flags);
-		isEdited |= ImGui::DragFloat("Absorption Offset", &mat.absorption.w, 0.01f);
 
-		isEdited |= ImGui::DragFloat("Albedo Reflectivity", &mat.albedoReflectivity, 0.01f, 0.0f, 1.0f);
-		isEdited |= ImGui::DragFloat("Specular Reflectivity", &mat.specularReflectivity, 0.01f, 0.0f, 1.0f);
-		isEdited |= ImGui::DragFloat("Reflective Index", &mat.reflectiveIndex, 0.01f, 0.0f);
+		isEdited |= ImGui::ColorEdit4("Albedo", &mat.albedo.x, flags);
+		ImGuiUtils::LockMouseOnActive();
+
+		isEdited |= ImGui::ColorEdit4("Specular", &mat.specular.x, flags);
+		ImGuiUtils::LockMouseOnActive();
+
+		isEdited |= ImGui::ColorEdit4("Emission", &mat.emission.x, flags);
+		ImGuiUtils::LockMouseOnActive();
+
+		isEdited |= ImGui::ColorEdit4("Absorption", &mat.absorption.x, flags);
+		ImGuiUtils::LockMouseOnActive();
+
+		isEdited |= ImGui::SliderFloat("Albedo Reflectivity", &mat.albedoReflectivity, 0.0f, 1.0f);
+		isEdited |= ImGui::SliderFloat("Specular Reflectivity", &mat.specularReflectivity, 0.0f, 1.0f);
+
+		isEdited |= ImGui::DragFloat("Reflective Index", &mat.reflectiveIndex, 0.001f, 0.001f);
+		ImGuiUtils::LockMouseOnActive();
 
 		ImGui::TreePop();
 	}
@@ -349,7 +359,10 @@ static bool EditShape(Shape &shape, bool &remove)
 		if (isOpen)
 		{
 			isEdited |= ImGui::DragFloat3("Min", &aabb->min.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Max", &aabb->max.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
 		}
 	}
 	else if (auto* obb = dynamic_cast<ShapeOBB*>(&shape))
@@ -359,10 +372,26 @@ static bool EditShape(Shape &shape, bool &remove)
 		if (isOpen)
 		{
 			isEdited |= ImGui::DragFloat3("Center", &obb->center.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Half Extents", &obb->halfLength.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("X-Axis", &obb->xAxis.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Y-Axis", &obb->yAxis.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Z-Axis", &obb->zAxis.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
+			if (ImGui::Button("Normalize"))
+			{
+				obb->xAxis = obb->xAxis.normalized();
+				obb->yAxis = (obb->yAxis - obb->xAxis * obb->yAxis.dot(obb->xAxis)).normalized();
+				obb->zAxis = (obb->zAxis - obb->xAxis * obb->zAxis.dot(obb->xAxis) - obb->yAxis * obb->zAxis.dot(obb->yAxis)).normalized();
+			}
 		}
 	}
 	else if (auto* sphere = dynamic_cast<ShapeSphere*>(&shape))
@@ -372,7 +401,10 @@ static bool EditShape(Shape &shape, bool &remove)
 		if (isOpen)
 		{
 			isEdited |= ImGui::DragFloat3("Position", &sphere->pos.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat("Radius", &sphere->rad, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
 		}
 	}
 	else if (auto* tri = dynamic_cast<ShapeTri*>(&shape))
@@ -382,8 +414,13 @@ static bool EditShape(Shape &shape, bool &remove)
 		if (isOpen)
 		{
 			isEdited |= ImGui::DragFloat3("Vertex 1", &tri->v1.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Vertex 2", &tri->v2.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Vertex 3", &tri->v3.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
 		}
 	}
 	else if (auto* plane = dynamic_cast<ShapePlane*>(&shape))
@@ -393,7 +430,15 @@ static bool EditShape(Shape &shape, bool &remove)
 		if (isOpen)
 		{
 			isEdited |= ImGui::DragFloat3("Center", &plane->center.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
 			isEdited |= ImGui::DragFloat3("Normal", &plane->normal.x, 0.1f);
+			ImGuiUtils::LockMouseOnActive();
+
+			if (ImGui::Button("Normalize"))
+			{
+				plane->normal = plane->normal.normalized();
+			}
 		}
 	}
 
@@ -625,6 +670,9 @@ int main()
 			}
 		}
 
+		ImGuiUtils::windowPosX = window.getPosition().x;
+		ImGuiUtils::windowPosY = window.getPosition().y;
+
 		ImGui::SFML::Update(window, imClock.restart());
 
 		ImGui::Begin("Debug");
@@ -707,12 +755,25 @@ int main()
 
 					ImGuiColorEditFlags flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
 					isEdited |= ImGui::ColorEdit3("Peak Color", &rtData.skybox.peakCol.x, flags);
+					ImGuiUtils::LockMouseOnActive();
+
 					isEdited |= ImGui::ColorEdit3("Horizon Color", &rtData.skybox.horizonCol.x, flags);
+					ImGuiUtils::LockMouseOnActive();
+
 					isEdited |= ImGui::ColorEdit3("Void Color", &rtData.skybox.voidCol.x, flags);
+					ImGuiUtils::LockMouseOnActive();
+
 					isEdited |= ImGui::ColorEdit3("Sun Color", &rtData.skybox.sunCol.x, flags);
+					ImGuiUtils::LockMouseOnActive();
+
 					isEdited |= ImGui::DragFloat3("Sun Direction", &rtData.skybox.sunDir.x, 0.1f);
+					ImGuiUtils::LockMouseOnActive();
+
 					isEdited |= ImGui::DragFloat("Sun Size", &rtData.skybox.sunSize, 0.1f, 0.0f);
+					ImGuiUtils::LockMouseOnActive();
+
 					isEdited |= ImGui::DragFloat("Sun Flare", &rtData.skybox.sunFlare, 0.1f, 0.0f);
+					ImGuiUtils::LockMouseOnActive();
 
 					ImGui::TreePop();
 				}
@@ -791,18 +852,22 @@ int main()
 			if (ImGui::BeginTabItem("Camera"))
 			{
 				ImGui::SliderFloat("Speed", &rtData.cam.speed, 0.01f, 100.0f);
+				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::SliderFloat("FOV", &rtData.cam.fov, 0.01f, 179.99f))
 					hasMoved = true;
+				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::DragScalarN("Position", ImGuiDataType_Double, &rtData.cam.origin.x, 3, 0.1f))
 					hasMoved = true;
+				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::DragScalarN("Forward", ImGuiDataType_Double, &rtData.cam.fwd.x, 3, 0.1f))
 				{
 					rtData.cam.UpdateRotation();
 					hasMoved = true;
 				}
+				ImGuiUtils::LockMouseOnActive();
 
 				ImGui::EndTabItem();
 			}
@@ -816,6 +881,7 @@ int main()
 					res.y = std::max(1u, res.y);
 					window.setSize(res);
 				}
+				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::Checkbox("Lock FPS", &lockFPS))
 					timeToSleep = (lockFPS) ? ((1.0 / (double)maxFPS) - dT) : 0.0;
@@ -830,6 +896,7 @@ int main()
 						maxFPS = (unsigned int)std::max(10, maxFPSint);
 						timeToSleep = (1.0 / (double)maxFPS) - dT;
 					}
+					ImGuiUtils::LockMouseOnActive();
 				}
 
 				if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
@@ -838,6 +905,7 @@ int main()
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
+				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
 				{
@@ -845,6 +913,7 @@ int main()
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
+				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::Checkbox("High-quality Render", &realRender))
 				{

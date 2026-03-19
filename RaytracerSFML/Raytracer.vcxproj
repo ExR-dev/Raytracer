@@ -285,6 +285,7 @@
     <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\WindowEnums.hpp" />
     <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\WindowHandle.hpp" />
     <ClInclude Include="Graphics.h" />
+    <ClInclude Include="ImGuiUtils.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="ShaderUniformTypes.h" />
     <ClInclude Include="Shapes.h" />
@@ -316,6 +317,7 @@
     <ClCompile Include="External\ImGui\imgui_tables.cpp" />
     <ClCompile Include="External\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="External\ImGui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="ImGuiUtils.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -480,6 +480,9 @@
     <ClInclude Include="External\SFML-3.0.2\include\SFML\Window.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ImGuiUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="RaytracerShader.frag">
@@ -551,6 +554,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="External\ImGui\imgui-SFML.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGuiUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
