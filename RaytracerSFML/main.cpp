@@ -391,6 +391,7 @@ static bool EditShape(Shape &shape, bool &remove)
 				obb->xAxis = obb->xAxis.normalized();
 				obb->yAxis = (obb->yAxis - obb->xAxis * obb->yAxis.dot(obb->xAxis)).normalized();
 				obb->zAxis = (obb->zAxis - obb->xAxis * obb->zAxis.dot(obb->xAxis) - obb->yAxis * obb->zAxis.dot(obb->yAxis)).normalized();
+				isEdited = true;
 			}
 		}
 	}
@@ -438,6 +439,7 @@ static bool EditShape(Shape &shape, bool &remove)
 			if (ImGui::Button("Normalize"))
 			{
 				plane->normal = plane->normal.normalized();
+				isEdited = true;
 			}
 		}
 	}
