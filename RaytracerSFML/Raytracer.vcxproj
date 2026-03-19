@@ -102,16 +102,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\SFML-2.6.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;$(SolutionDir)External\ImGui;$(SolutionDir)External\rapidjson;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\SFML-2.6.0\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>flac.lib;freetype.lib;ogg.lib;sfml-audio-d.lib;sfml-main-d.lib;sfml-graphics-d.lib;sfml-window-d.lib;sfml-network-d.lib;sfml-system-d.lib;vorbis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)External\SFML-3.0.2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>flac.lib;freetype.lib;ogg.lib;sfml-audio-d.lib;sfml-main-d.lib;sfml-graphics-d.lib;sfml-window-d.lib;sfml-network-d.lib;sfml-system-d.lib;vorbis.lib;%(AdditionalDependencies);opengl32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -120,9 +120,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\SFML-2.6.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;$(SolutionDir)External\ImGui;$(SolutionDir)External\rapidjson;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -130,19 +130,194 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\SFML-2.6.0\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sfml-audio.lib;sfml-main.lib;sfml-graphics.lib;sfml-network.lib;sfml-system.lib;sfml-window.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)External\SFML-3.0.2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>sfml-audio.lib;sfml-main.lib;sfml-graphics.lib;sfml-network.lib;sfml-system.lib;sfml-window.lib;opengl32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="External\ImGui\backends\imgui_impl_opengl2.h" />
+    <ClInclude Include="External\ImGui\backends\imgui_impl_opengl3.h" />
+    <ClInclude Include="External\ImGui\backends\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="External\ImGui\imconfig-SFML.h" />
+    <ClInclude Include="External\ImGui\imconfig.h" />
+    <ClInclude Include="External\ImGui\imgui-SFML.h" />
+    <ClInclude Include="External\ImGui\imgui-SFML_export.h" />
+    <ClInclude Include="External\ImGui\imgui.h" />
+    <ClInclude Include="External\ImGui\imgui_internal.h" />
+    <ClInclude Include="External\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="External\ImGui\imstb_textedit.h" />
+    <ClInclude Include="External\ImGui\imstb_truetype.h" />
+    <ClInclude Include="External\ImGui\misc\cpp\imgui_stdlib.h" />
+    <ClInclude Include="External\rapidjson\allocators.h" />
+    <ClInclude Include="External\rapidjson\document.h" />
+    <ClInclude Include="External\rapidjson\encodedstream.h" />
+    <ClInclude Include="External\rapidjson\encodings.h" />
+    <ClInclude Include="External\rapidjson\error\en.h" />
+    <ClInclude Include="External\rapidjson\error\error.h" />
+    <ClInclude Include="External\rapidjson\filereadstream.h" />
+    <ClInclude Include="External\rapidjson\filewritestream.h" />
+    <ClInclude Include="External\rapidjson\fwd.h" />
+    <ClInclude Include="External\rapidjson\internal\biginteger.h" />
+    <ClInclude Include="External\rapidjson\internal\diyfp.h" />
+    <ClInclude Include="External\rapidjson\internal\dtoa.h" />
+    <ClInclude Include="External\rapidjson\internal\ieee754.h" />
+    <ClInclude Include="External\rapidjson\internal\itoa.h" />
+    <ClInclude Include="External\rapidjson\internal\meta.h" />
+    <ClInclude Include="External\rapidjson\internal\pow10.h" />
+    <ClInclude Include="External\rapidjson\internal\regex.h" />
+    <ClInclude Include="External\rapidjson\internal\stack.h" />
+    <ClInclude Include="External\rapidjson\internal\strfunc.h" />
+    <ClInclude Include="External\rapidjson\internal\strtod.h" />
+    <ClInclude Include="External\rapidjson\internal\swap.h" />
+    <ClInclude Include="External\rapidjson\istreamwrapper.h" />
+    <ClInclude Include="External\rapidjson\memorybuffer.h" />
+    <ClInclude Include="External\rapidjson\memorystream.h" />
+    <ClInclude Include="External\rapidjson\msinttypes\inttypes.h" />
+    <ClInclude Include="External\rapidjson\msinttypes\stdint.h" />
+    <ClInclude Include="External\rapidjson\ostreamwrapper.h" />
+    <ClInclude Include="External\rapidjson\pointer.h" />
+    <ClInclude Include="External\rapidjson\prettywriter.h" />
+    <ClInclude Include="External\rapidjson\rapidjson.h" />
+    <ClInclude Include="External\rapidjson\reader.h" />
+    <ClInclude Include="External\rapidjson\schema.h" />
+    <ClInclude Include="External\rapidjson\stream.h" />
+    <ClInclude Include="External\rapidjson\stringbuffer.h" />
+    <ClInclude Include="External\rapidjson\writer.h" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\AudioResource.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\Export.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\InputSoundFile.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\Listener.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\Music.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\OutputSoundFile.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\PlaybackDevice.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\Sound.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundBuffer.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundBufferRecorder.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundChannel.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundFileFactory.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundFileReader.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundFileWriter.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundRecorder.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundSource.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Audio\SoundStream.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Config.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\GpuPreference.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\BlendMode.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\CircleShape.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Color.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\ConvexShape.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\CoordinateType.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Drawable.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Export.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Font.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Glsl.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Glyph.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Image.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\PrimitiveType.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Rect.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\RectangleShape.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\RenderStates.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\RenderTarget.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\RenderTexture.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\RenderWindow.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Shader.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Shape.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Sprite.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\StencilMode.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Text.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Texture.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Transform.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Transformable.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\Vertex.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\VertexArray.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\VertexBuffer.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Graphics\View.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Main.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\Export.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\Ftp.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\Http.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\IpAddress.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\Packet.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\Socket.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\SocketHandle.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\SocketSelector.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\TcpListener.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\TcpSocket.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Network\UdpSocket.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\OpenGL.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Angle.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Clock.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Err.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Exception.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Export.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\FileInputStream.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\InputStream.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\MemoryInputStream.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\NativeActivity.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Sleep.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\String.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\SuspendAwareClock.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Time.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Utf.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Vector2.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\System\Vector3.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Clipboard.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Context.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\ContextSettings.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Cursor.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Event.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Export.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\GlResource.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Joystick.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Keyboard.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Mouse.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Sensor.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Touch.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\VideoMode.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Vulkan.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\Window.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\WindowBase.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\WindowEnums.hpp" />
+    <ClInclude Include="External\SFML-3.0.2\include\SFML\Window\WindowHandle.hpp" />
     <ClInclude Include="Graphics.h" />
+    <ClInclude Include="ImGuiUtils.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="ShaderUniformTypes.h" />
+    <ClInclude Include="Shapes.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Vec3.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="External\SFML-3.0.2\include\SFML\Audio\SoundFileFactory.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\Graphics\Color.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\Graphics\Glsl.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\Graphics\Rect.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\Graphics\Transform.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\System\Angle.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\System\String.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\System\Time.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\System\Utf.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\System\Vector2.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\System\Vector3.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\Window\Event.inl" />
+    <None Include="External\SFML-3.0.2\include\SFML\Window\WindowBase.inl" />
     <None Include="RaytracerShader.frag" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="External\ImGui\backends\imgui_impl_opengl2.cpp" />
+    <ClCompile Include="External\ImGui\backends\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="External\ImGui\imgui-SFML.cpp" />
+    <ClCompile Include="External\ImGui\imgui.cpp" />
+    <ClCompile Include="External\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="External\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="External\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="External\ImGui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="ImGuiUtils.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

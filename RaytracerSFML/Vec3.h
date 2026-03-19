@@ -1,11 +1,7 @@
 #pragma once
-
 #include "Utils.h"
-
 #include <cmath>
-
 #include "SFML/Graphics/Shader.hpp"
-
 
 struct Vec3
 {
@@ -197,7 +193,7 @@ struct Vec3
         return refraction;
     }
 
-    sf::Glsl::Vec3 ToShader()
+    sf::Glsl::Vec3 ToShader() const
     {
         return sf::Glsl::Vec3(
             (float)x, 

@@ -1,10 +1,7 @@
 #pragma once
-
 #include "Utils.h"
 #include "Vec3.h"
-
 #include <cmath>
-
 
 constexpr double riVacuum = 1.0;
 constexpr double riAir = 1.000293;
