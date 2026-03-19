@@ -1,0 +1,120 @@
+{
+    "shapes": [
+        {
+            "type": "aabb",
+            "albedo": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "specular": [
+                1.0,
+                1.0,
+                1.0,
+                0.10000000149011612
+            ],
+            "emission": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "absorption": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "albedoReflectivity": 0.0,
+            "specularReflectivity": 0.0,
+            "reflectiveIndex": 1.5199999809265137,
+            "min": [
+                -25.0,
+                0.0,
+                -20.0
+            ],
+            "max": [
+                25.0,
+                15.0,
+                -18.0
+            ]
+        },
+        {
+            "type": "sphere",
+            "albedo": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "specular": [
+                1.0,
+                1.0,
+                1.0,
+                0.10000000149011612
+            ],
+            "emission": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "absorption": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "albedoReflectivity": 0.0,
+            "specularReflectivity": 0.0,
+            "reflectiveIndex": 1.5199999809265137,
+            "pos": [
+                1.0,
+                3.0,
+                0.0
+            ],
+            "rad": 3.0
+        },
+        {
+            "type": "plane",
+            "albedo": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "specular": [
+                1.0,
+                1.0,
+                1.0,
+                0.10000000149011612
+            ],
+            "emission": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "absorption": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "albedoReflectivity": 0.0,
+            "specularReflectivity": 0.0,
+            "reflectiveIndex": 1.5199999809265137,
+            "center": [
+                0.0,
+                -1.0,
+                0.0
+            ],
+            "normal": [
+                0.0,
+                1.0,
+                0.0
+            ]
+        }
+    ]
+}

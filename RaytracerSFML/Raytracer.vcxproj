@@ -102,7 +102,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;$(SolutionDir)External\ImGui;$(SolutionDir)External\rapidjson;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -120,7 +120,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)External\SFML-3.0.2\include;$(SolutionDir)External\ImGui;$(SolutionDir)External\rapidjson;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -149,6 +149,41 @@
     <ClInclude Include="External\ImGui\imstb_textedit.h" />
     <ClInclude Include="External\ImGui\imstb_truetype.h" />
     <ClInclude Include="External\ImGui\misc\cpp\imgui_stdlib.h" />
+    <ClInclude Include="External\rapidjson\allocators.h" />
+    <ClInclude Include="External\rapidjson\document.h" />
+    <ClInclude Include="External\rapidjson\encodedstream.h" />
+    <ClInclude Include="External\rapidjson\encodings.h" />
+    <ClInclude Include="External\rapidjson\error\en.h" />
+    <ClInclude Include="External\rapidjson\error\error.h" />
+    <ClInclude Include="External\rapidjson\filereadstream.h" />
+    <ClInclude Include="External\rapidjson\filewritestream.h" />
+    <ClInclude Include="External\rapidjson\fwd.h" />
+    <ClInclude Include="External\rapidjson\internal\biginteger.h" />
+    <ClInclude Include="External\rapidjson\internal\diyfp.h" />
+    <ClInclude Include="External\rapidjson\internal\dtoa.h" />
+    <ClInclude Include="External\rapidjson\internal\ieee754.h" />
+    <ClInclude Include="External\rapidjson\internal\itoa.h" />
+    <ClInclude Include="External\rapidjson\internal\meta.h" />
+    <ClInclude Include="External\rapidjson\internal\pow10.h" />
+    <ClInclude Include="External\rapidjson\internal\regex.h" />
+    <ClInclude Include="External\rapidjson\internal\stack.h" />
+    <ClInclude Include="External\rapidjson\internal\strfunc.h" />
+    <ClInclude Include="External\rapidjson\internal\strtod.h" />
+    <ClInclude Include="External\rapidjson\internal\swap.h" />
+    <ClInclude Include="External\rapidjson\istreamwrapper.h" />
+    <ClInclude Include="External\rapidjson\memorybuffer.h" />
+    <ClInclude Include="External\rapidjson\memorystream.h" />
+    <ClInclude Include="External\rapidjson\msinttypes\inttypes.h" />
+    <ClInclude Include="External\rapidjson\msinttypes\stdint.h" />
+    <ClInclude Include="External\rapidjson\ostreamwrapper.h" />
+    <ClInclude Include="External\rapidjson\pointer.h" />
+    <ClInclude Include="External\rapidjson\prettywriter.h" />
+    <ClInclude Include="External\rapidjson\rapidjson.h" />
+    <ClInclude Include="External\rapidjson\reader.h" />
+    <ClInclude Include="External\rapidjson\schema.h" />
+    <ClInclude Include="External\rapidjson\stream.h" />
+    <ClInclude Include="External\rapidjson\stringbuffer.h" />
+    <ClInclude Include="External\rapidjson\writer.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Shapes.h" />

@@ -7,7 +7,7 @@ struct Shape
 {
 	Material mat;
 
-	virtual void Dummy() const = 0;
+	virtual const char* Name() const = 0;
 };
 
 struct ShapeAABB : Shape
@@ -16,10 +16,10 @@ struct ShapeAABB : Shape
 		min = sf::Glsl::Vec3(-1, -1, -1),
 		max = sf::Glsl::Vec3(1, 1, 1);
 
-	void Dummy() const override {}
-
 	static size_t GetMax() { return 16; }
 	static const char* GetShapeName() { return "aabb"; }
+
+	const char* Name() const override { return GetShapeName(); }
 };
 
 struct ShapeOBB : Shape
@@ -31,10 +31,10 @@ struct ShapeOBB : Shape
 		yAxis = sf::Glsl::Vec3(0, 1, 0),
 		zAxis = sf::Glsl::Vec3(0, 0, 1);
 
-	void Dummy() const override {}
-
 	static size_t GetMax() { return 16; }
 	static const char* GetShapeName() { return "obb"; }
+
+	const char* Name() const override { return GetShapeName(); }
 };
 
 struct ShapeSphere : Shape
@@ -42,10 +42,10 @@ struct ShapeSphere : Shape
 	sf::Glsl::Vec3 pos = sf::Glsl::Vec3(0, 0, 0);
 	float rad = 1;
 
-	void Dummy() const override {}
-
 	static size_t GetMax() { return 16; }
 	static const char* GetShapeName() { return "sphere"; }
+
+	const char* Name() const override { return GetShapeName(); }
 };
 
 struct ShapeTri : Shape
@@ -55,10 +55,10 @@ struct ShapeTri : Shape
 		v2 = sf::Glsl::Vec3(0, 1, 0),
 		v3 = sf::Glsl::Vec3(1, 0, 0);
 
-	void Dummy() const override {}
-
 	static size_t GetMax() { return 32; }
 	static const char* GetShapeName() { return "tri"; }
+
+	const char* Name() const override { return GetShapeName(); }
 };
 
 struct ShapePlane : Shape
@@ -67,10 +67,10 @@ struct ShapePlane : Shape
 		center = sf::Glsl::Vec3(0, 0, 0),
 		normal = sf::Glsl::Vec3(0, 1, 0);
 
-	void Dummy() const override {}
-
 	static size_t GetMax() { return 8; }
 	static const char* GetShapeName() { return "plane"; }
+
+	const char* Name() const override { return GetShapeName(); }
 };
 
 
