@@ -672,38 +672,12 @@ int main()
 			}
 		}
 
-		ImGuiUtils::windowPosX = window.getPosition().x;
-		ImGuiUtils::windowPosY = window.getPosition().y;
-
 		ImGui::SFML::Update(window, imClock.restart());
 
 		ImGui::Begin("Debug");
 
 		guiFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		guiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
-
-		if (ImGui::Button("Snapshot"))
-		{
-			sf::Image snapshotImage;
-
-			if (realRender)
-				snapshotImage = displayImg;
-			else
-				snapshotImage = renderTex.getTexture().copyToImage();
-
-			nextSnapshot = utils::FirstUnusedSnapshot(nextSnapshot);
-			std::string filename = "Snapshots/Snapshot " + std::to_string(nextSnapshot) + ".png";
-
-			if (!snapshotImage.saveToFile(filename))
-				std::cout << "Saving Failed!";
-		}
-
-		ImGui::SameLine();
-		if (ImGui::Button("Quit"))
-			window.close();
-
-		ImGui::SameLine();
-		ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
 		if (ImGui::BeginTabBar("Tabs"))
 		{
@@ -876,6 +850,24 @@ int main()
 
 			if (ImGui::BeginTabItem("Rendering"))
 			{
+				ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
+				if (ImGui::Button("Take Snapshot"))
+				{
+					sf::Image snapshotImage;
+
+					if (realRender)
+						snapshotImage = displayImg;
+					else
+						snapshotImage = renderTex.getTexture().copyToImage();
+
+					nextSnapshot = utils::FirstUnusedSnapshot(nextSnapshot);
+					std::string filename = "Snapshots/Snapshot " + std::to_string(nextSnapshot) + ".png";
+
+					if (!snapshotImage.saveToFile(filename))
+						std::cout << "Saving Failed!";
+				}
+
 				sf::Vector2u res = rtData.cam.viewport.ToVecU();
 				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f))
 				{

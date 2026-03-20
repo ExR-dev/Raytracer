@@ -7,7 +7,5 @@
 
 namespace ImGuiUtils
 {
-	static int windowPosX, windowPosY;
-
 	void LockMouseOnActive();
 }
