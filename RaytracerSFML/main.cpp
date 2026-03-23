@@ -499,7 +499,7 @@ int main()
 
 	sf::Vector2i deltas, windowPos;
 
-	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds;
+	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds, alphaIntensity;
 	unsigned int perPixelSamples, maxBounces;
 
 	{
@@ -508,6 +508,7 @@ int main()
 
 		cumulativeLighting = true;
 		realRender = false;
+		alphaIntensity = false;
 		randomizeSampleDir = true;
 		disableLighting = false;
 		viewBounds = false;
@@ -915,6 +916,12 @@ int main()
 					hasMoved = true;
 				}
 
+				if (ImGui::Checkbox("Alpha Intensity", &alphaIntensity))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
 				if (ImGui::Checkbox("Cumulative Lighting", &cumulativeLighting))
 				{
 					cumulativeFrameCount = 0;
@@ -1038,6 +1045,16 @@ int main()
 				sf::Color sfPix = renderImg.getPixel({ x, y });
 				Color pix = sfPix;
 
+				if (alphaIntensity)
+				{
+					double alpha = ((double)sfPix.a) / 255.0;
+
+					pix *= (sfPix.a > 0) ? (1.0 / alpha) : 99999.0;
+					//pix *= (sfPix.a > 0) ? std::pow(2.0, alpha * 8.0) : 1.0;
+
+					//pix = Color::DecodeRGBE(sfPix);
+				}
+
 				if (cumulativeLighting)
 				{
 					render[i] = render[i] + pix;
@@ -1050,11 +1067,14 @@ int main()
 
 				Color displayCol = render[i] / colorsCaptured;
 
+				if (alphaIntensity)
+					displayCol = displayCol.ACESFilm();
+
 				displayImg.setPixel({ x, y }, {
 					(uint8_t)(displayCol.r * 255.0),
 					(uint8_t)(displayCol.g * 255.0),
 					(uint8_t)(displayCol.b * 255.0)
-					});
+				});
 			}
 		}
 
@@ -1065,6 +1085,7 @@ int main()
 			
 			shader.setUniform("viewBounds", viewBounds);
 			shader.setUniform("realRender", realRender);
+			shader.setUniform("alphaIntensity", alphaIntensity);
 			shader.setUniform("disableLighting", disableLighting);
 			shader.setUniform("randomizeDir", randomizeSampleDir);
 

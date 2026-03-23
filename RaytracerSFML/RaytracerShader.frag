@@ -136,6 +136,27 @@ vec3 ACESFilm(vec3 x)
 	return clamp((x*(2.51*x + 0.03)) / (x*(2.43*x + 0.59) + 0.14), 0.0, 1.0);
 }
 
+vec4 EncodeRGBE(vec3 color)
+{
+    float maxComponent = max(max(color.r, color.g), color.b);
+
+    // Handle black
+    if (maxComponent < 1e-32)
+        return vec4(0.0, 0.0, 0.0, 0.0);
+
+    // Compute exponent (base 2)
+    float exponent = ceil(log2(maxComponent));
+
+    // Normalize mantissa into [0,1)
+    float scale = exp2(-exponent);
+    vec3 mantissa = color * scale;
+
+    // Pack exponent into alpha (bias by 128 like Radiance)
+    float encodedExp = (exponent + 128.0) / 255.0;
+
+    return vec4(mantissa, encodedExp);
+}
+
 /*=======================================================================================================*/
 /*                                                 UTILS                                                 */
 /*=======================================================================================================*/
@@ -963,6 +984,7 @@ uniform int frameCount;
 uniform int samples;
 
 uniform bool realRender;
+uniform bool alphaIntensity;
 uniform bool randomizeDir;
 
 uniform int rndSeed;
@@ -990,9 +1012,10 @@ void main(void)
 
 	for (int i = 0; i < samples; i++)
 		outCol += Raytrace(camPos, pixDir, riAir, seed);
-	outCol /= samples;
+	outCol /= float(samples);
 
-	outCol = ACESFilm(outCol);
+	if (!alphaIntensity)
+		outCol = ACESFilm(outCol);
 
 	if (!realRender)
 	{
@@ -1000,7 +1023,26 @@ void main(void)
 		outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
 	}
 
-	gl_FragColor = vec4(outCol, 1.0);
+	if (alphaIntensity)
+	{
+		float maxChannel = max(outCol.r, max(outCol.g, outCol.b));
+
+		float alpha = 1.0;
+		if (maxChannel > 1.0)
+		{
+			outCol /= maxChannel;
+
+			alpha = 1.0 / maxChannel;
+			//alpha = log2(maxChannel) / 8.0;
+		}
+
+		gl_FragColor = vec4(outCol, alpha);
+		//gl_FragColor = EncodeRGBE(outCol);
+	}
+	else
+	{
+		gl_FragColor = vec4(outCol, 1.0);
+	}
 
 	if (viewBounds)
 	{
