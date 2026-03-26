@@ -215,23 +215,18 @@ struct Color
             std::max(0.0, std::min((b*(2.51*b + 0.03)) / (b*(2.43*b + 0.59) + 0.14), 1.0))
         };
     }
-
+        
     static Color DecodeRGBE(sf::Color rgbe)
     {
         if (rgbe.a == 0)
-            return { 0.0, 0.0, 0.0 };
+            return Color();
 
-        // Reconstruct exponent
-        int exponent = int(rgbe.a) - 128;
+        float f = ldexp(1.0, rgbe.a - (int)(128 + 8));
 
-        // Convert mantissa back to [0,1]
-        float scale = std::ldexp(1.0f, exponent - 8);
-        // NOTE: -8 accounts for 8-bit mantissa precision (Radiance convention)
-
-        return {
-            rgbe.r * scale,
-            rgbe.g * scale,
-            rgbe.b * scale
-        };
-	}
+        return Color(
+            rgbe.r * f,
+            rgbe.g * f,
+            rgbe.b * f
+        );
+    }
 };

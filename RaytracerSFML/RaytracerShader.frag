@@ -1,4 +1,5 @@
-#version 130
+//#version 130
+#version 400
 //#extension GL_EXT_gpu_shader4 : enable
 //#extension GL_ARB_gpu_shader_fp64 : enable
 
@@ -136,25 +137,37 @@ vec3 ACESFilm(vec3 x)
 	return clamp((x*(2.51*x + 0.03)) / (x*(2.43*x + 0.59) + 0.14), 0.0, 1.0);
 }
 
-vec4 EncodeRGBE(vec3 color)
+vec4 encodeRGBE(vec3 color)
 {
-    float maxComponent = max(max(color.r, color.g), color.b);
+	float maxComp = max(max(color.r, color.g), color.b);
+	
+	if (maxComp <= 0.0)
+		return vec4(0.0);
+	
+	float e = ceil(log2(maxComp));
+	float scale = exp2(e - 8.0);           // mantissa will be in [0, 255]
+	
+	vec3 mant = floor(color / scale * 255.0 + 0.5); // round to nearest
+	
+	return vec4(mant / 255.0, e + 128.0);
+}
 
-    // Handle black
-    if (maxComponent < 1e-32)
-        return vec4(0.0, 0.0, 0.0, 0.0);
+vec4 float2rgbe(vec3 col)
+{
+	float v = max(max(col.r, col.g), col.b);
 
-    // Compute exponent (base 2)
-    float exponent = ceil(log2(maxComponent));
+	if (v < 1e-32)
+		return vec4(0.0);
 
-    // Normalize mantissa into [0,1)
-    float scale = exp2(-exponent);
-    vec3 mantissa = color * scale;
-
-    // Pack exponent into alpha (bias by 128 like Radiance)
-    float encodedExp = (exponent + 128.0) / 255.0;
-
-    return vec4(mantissa, encodedExp);
+	int e;
+	v = frexp(v, e) * 256.0 / v;
+	
+	return vec4(
+		uint(col.r * v), 
+		uint(col.g * v), 
+		uint(col.b * v), 
+		uint(e + 128)
+	) / 255.0;
 }
 
 /*=======================================================================================================*/
@@ -989,10 +1002,13 @@ uniform bool randomizeDir;
 
 uniform int rndSeed;
 
+in vec2 vTexCoord;
+out vec4 fragColor;
+
 
 void main(void)
 {
-	vec2 uv = vec2(gl_TexCoord[0].x, 1.0 - gl_TexCoord[0].y);
+	vec2 uv = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
 	vec3 lFrame = texture2D(lastFrame, uv).xyz;
 	vec3 outCol = vec3(0);
 	
@@ -1025,23 +1041,11 @@ void main(void)
 
 	if (alphaIntensity)
 	{
-		float maxChannel = max(outCol.r, max(outCol.g, outCol.b));
-
-		float alpha = 1.0;
-		if (maxChannel > 1.0)
-		{
-			outCol /= maxChannel;
-
-			alpha = 1.0 / maxChannel;
-			//alpha = log2(maxChannel) / 8.0;
-		}
-
-		gl_FragColor = vec4(outCol, alpha);
-		//gl_FragColor = EncodeRGBE(outCol);
+		fragColor = encodeRGBE(outCol);
 	}
 	else
 	{
-		gl_FragColor = vec4(outCol, 1.0);
+		fragColor = vec4(outCol, 1.0);
 	}
 
 	if (viewBounds)
@@ -1052,7 +1056,7 @@ void main(void)
 		vec4 albedo, emission, surface, specular, absorption;
 
 		if (GetFirstHit(camPos, pixDir, true, l, p, n, s, surface, albedo, specular, emission, absorption))
-			gl_FragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
+			fragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
 	}
 
 }

@@ -518,7 +518,7 @@ int main()
 
 
 	sf::Shader shader;
-	if (!shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment))
+	if (!shader.loadFromFile("Default.vert", "RaytracerShader.frag"))
 	{
 		std::cerr << "Failed to load shader" << std::endl;
 		return -1;
@@ -886,9 +886,9 @@ int main()
 					ImGui::SameLine();
 
 					int maxFPSint = (int)maxFPS;
-					if (ImGui::DragInt("##MaxFPS", &maxFPSint, 0.5f, 10))
+					if (ImGui::DragInt("##MaxFPS", &maxFPSint, 0.5f, 5))
 					{
-						maxFPS = (unsigned int)std::max(10, maxFPSint);
+						maxFPS = (unsigned int)std::max(5, maxFPSint);
 						timeToSleep = (1.0 / (double)maxFPS) - dT;
 					}
 					ImGuiUtils::LockMouseOnActive();
@@ -1043,17 +1043,7 @@ int main()
 				double colorsCaptured = cumulativeFrameCount;
 
 				sf::Color sfPix = renderImg.getPixel({ x, y });
-				Color pix = sfPix;
-
-				if (alphaIntensity)
-				{
-					double alpha = ((double)sfPix.a) / 255.0;
-
-					pix *= (sfPix.a > 0) ? (1.0 / alpha) : 99999.0;
-					//pix *= (sfPix.a > 0) ? std::pow(2.0, alpha * 8.0) : 1.0;
-
-					//pix = Color::DecodeRGBE(sfPix);
-				}
+				Color pix = alphaIntensity ? Color::DecodeRGBE(sfPix) : Color(sfPix);
 
 				if (cumulativeLighting)
 				{
