@@ -137,22 +137,7 @@ vec3 ACESFilm(vec3 x)
 	return clamp((x*(2.51*x + 0.03)) / (x*(2.43*x + 0.59) + 0.14), 0.0, 1.0);
 }
 
-vec4 encodeRGBE(vec3 color)
-{
-	float maxComp = max(max(color.r, color.g), color.b);
-	
-	if (maxComp <= 0.0)
-		return vec4(0.0);
-	
-	float e = ceil(log2(maxComp));
-	float scale = exp2(e - 8.0);           // mantissa will be in [0, 255]
-	
-	vec3 mant = floor(color / scale * 255.0 + 0.5); // round to nearest
-	
-	return vec4(mant / 255.0, e + 128.0);
-}
-
-vec4 float2rgbe(vec3 col)
+vec4 EncodeRGBE(vec3 col)
 {
 	float v = max(max(col.r, col.g), col.b);
 
@@ -168,6 +153,20 @@ vec4 float2rgbe(vec3 col)
 		uint(col.b * v), 
 		uint(e + 128)
 	) / 255.0;
+}
+
+vec3 DecodeRGBE(vec4 rgbe)
+{
+	if (rgbe.a == 0.0)
+		return vec3(0.0);
+
+	float f = exp2(rgbe.a * 255.0 - 128.0 - 8.0);
+
+	return vec3(
+		rgbe.r * 255.0 * f,
+		rgbe.g * 255.0 * f,
+		rgbe.b * 255.0 * f
+	);
 }
 
 /*=======================================================================================================*/
@@ -1008,8 +1007,8 @@ out vec4 fragColor;
 
 void main(void)
 {
-	vec2 uv = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
-	vec3 lFrame = texture2D(lastFrame, uv).xyz;
+	vec2 uv = vec2(vTexCoord.x, vTexCoord.y);
+	vec3 lFrame = texture2D(lastFrame, uv).rgb;
 	vec3 outCol = vec3(0);
 	
 	uint rndS = uint(rndSeed + 2147483647);
@@ -1033,20 +1032,16 @@ void main(void)
 	if (!alphaIntensity)
 		outCol = ACESFilm(outCol);
 
-	if (!realRender)
+	if (!realRender && !alphaIntensity)
 	{
 		float avgWeight = 1.0 / (float(frameCount + 1));
-		outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
+		outCol = (lFrame.rgb * (1.0 - avgWeight)) + (outCol * avgWeight);
 	}
 
 	if (alphaIntensity)
-	{
-		fragColor = encodeRGBE(outCol);
-	}
+		fragColor = EncodeRGBE(outCol);
 	else
-	{
 		fragColor = vec4(outCol, 1.0);
-	}
 
 	if (viewBounds)
 	{

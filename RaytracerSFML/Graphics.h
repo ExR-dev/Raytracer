@@ -219,7 +219,7 @@ struct Color
     static Color DecodeRGBE(sf::Color rgbe)
     {
         if (rgbe.a == 0)
-            return Color();
+            return Color(0, 0, 0);
 
         float f = ldexp(1.0, rgbe.a - (int)(128 + 8));
 

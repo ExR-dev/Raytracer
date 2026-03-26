@@ -24,6 +24,15 @@
 #include <format>
 #include <cmath>
 
+struct MouseHover
+{
+	int x, y;
+	unsigned int colorsCaptured;
+
+	sf::Color sfPix, display;
+	Color rawColor, displayColor;
+};
+
 
 static void SaveScene(const std::vector<Shape*>& shapes, const RaytracerData& data, const std::string& saveName)
 {
@@ -463,7 +472,6 @@ int main()
 	if (!sf::Shader::isAvailable())
 		return 1;
 
-
 	unsigned int nextSnapshot = 0;
 
 	// Build Scene
@@ -531,7 +539,6 @@ int main()
 
 	BindShapes(shapes, shader);
 
-
 	sf::Clock clock, imClock;
 	double lT = 0.0, tT = 0.0, dT = 0.0;
 
@@ -547,6 +554,8 @@ int main()
 	bool 
 		guiFocused = false, 
 		guiHovered = false;
+
+	MouseHover mh;
 
 	while (window.isOpen())
 	{
@@ -679,6 +688,9 @@ int main()
 
 		guiFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		guiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+
+		sf::Vector2i mhPos = window.getPosition() - sf::Mouse::getPosition();
+		mh.x = -mhPos.x; mh.y = -mhPos.y;
 
 		if (ImGui::BeginTabBar("Tabs"))
 		{
@@ -851,6 +863,19 @@ int main()
 
 			if (ImGui::BeginTabItem("Rendering"))
 			{
+				if (ImGui::TreeNode("MouseHover"))
+				{
+					ImGui::Text("Pos: (%d, %d)", mh.x, mh.y);
+					ImGui::Text("colorsCaptured: %d", mh.colorsCaptured);
+
+					ImGui::Text("sfPix: (%d, %d, %d, %d)", mh.sfPix.r, mh.sfPix.g, mh.sfPix.b, mh.sfPix.a);
+					ImGui::Text("rawColor: (%.3f, %.3f, %.3f)", mh.rawColor.r, mh.rawColor.g, mh.rawColor.b);
+					ImGui::Text("displayColor: (%.3f, %.3f, %.3f)", mh.displayColor.r, mh.displayColor.g, mh.displayColor.b);
+					ImGui::Text("display: (%d, %d, %d, %d)", mh.display.r, mh.display.g, mh.display.b, mh.display.a);
+
+					ImGui::TreePop();
+				}
+
 				ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
 				if (ImGui::Button("Take Snapshot"))
@@ -946,6 +971,7 @@ int main()
 
 				ImGui::EndTabItem();
 			}
+			
 
 			ImGui::EndTabBar();
 		}
@@ -1032,6 +1058,7 @@ int main()
 			}
 		}
 
+		mh.colorsCaptured = cumulativeFrameCount;
 		if (realRender && cumulativeFrameCount > 0)
 		{
 			for (int i = 0; i < rtData.cam.viewport.dim; i++)
@@ -1040,10 +1067,18 @@ int main()
 					x = i % rtData.cam.viewport.w,
 					y = i / rtData.cam.viewport.w;
 
+				bool isHovered = (mh.x == x && mh.y == y);
+
 				double colorsCaptured = cumulativeFrameCount;
 
 				sf::Color sfPix = renderImg.getPixel({ x, y });
 				Color pix = alphaIntensity ? Color::DecodeRGBE(sfPix) : Color(sfPix);
+
+				if (isHovered)
+				{
+					mh.sfPix = sfPix;
+					mh.rawColor = pix;
+				}
 
 				if (cumulativeLighting)
 				{
@@ -1057,14 +1092,22 @@ int main()
 
 				Color displayCol = render[i] / colorsCaptured;
 
+				if (isHovered)
+					mh.displayColor = displayCol;
+
 				if (alphaIntensity)
 					displayCol = displayCol.ACESFilm();
 
-				displayImg.setPixel({ x, y }, {
+				sf::Color displaySfCol = {
 					(uint8_t)(displayCol.r * 255.0),
 					(uint8_t)(displayCol.g * 255.0),
 					(uint8_t)(displayCol.b * 255.0)
-				});
+				};
+
+				if (isHovered)
+					mh.display = displaySfCol;
+
+				displayImg.setPixel({ x, y }, displaySfCol);
 			}
 		}
 
@@ -1087,6 +1130,7 @@ int main()
 
 		shader.setUniform("lastFrame", renderTex.getTexture());
 
+		renderTex.clear({0, 0, 0, alphaIntensity ? 0u : 255u});
 		renderTex.draw(sprite, &shader);
 		renderTex.display();
 
