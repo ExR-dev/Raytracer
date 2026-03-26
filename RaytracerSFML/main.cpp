@@ -24,15 +24,6 @@
 #include <format>
 #include <cmath>
 
-struct MouseHover
-{
-	int x, y;
-	unsigned int colorsCaptured;
-
-	sf::Color sfPix, display;
-	Color rawColor, displayColor;
-};
-
 
 static void SaveScene(const std::vector<Shape*>& shapes, const RaytracerData& data, const std::string& saveName)
 {
@@ -507,8 +498,8 @@ int main()
 
 	sf::Vector2i deltas, windowPos;
 
-	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds, alphaIntensity;
-	unsigned int perPixelSamples, maxBounces;
+	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds, acesTone;
+	unsigned int perPixelSamples, maxBounces, displayFrameInterval;
 
 	{
 		keepConstant = false;
@@ -516,12 +507,13 @@ int main()
 
 		cumulativeLighting = true;
 		realRender = false;
-		alphaIntensity = false;
 		randomizeSampleDir = true;
 		disableLighting = false;
 		viewBounds = false;
+		acesTone = true;
 		perPixelSamples = 8;
 		maxBounces = 6;
+		displayFrameInterval = 3;
 	}
 
 
@@ -555,8 +547,6 @@ int main()
 		guiFocused = false, 
 		guiHovered = false;
 
-	MouseHover mh;
-
 	while (window.isOpen())
 	{
 		lT = tT;
@@ -564,6 +554,7 @@ int main()
 		dT = tT - lT;
 
 		bool hasMoved = false;
+		bool shouldDisplay = (cumulativeFrameCount - 1) % displayFrameInterval == 0;
 
 		while (std::optional<sf::Event> optEvent = window.pollEvent())
 		{
@@ -688,9 +679,6 @@ int main()
 
 		guiFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		guiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
-
-		sf::Vector2i mhPos = window.getPosition() - sf::Mouse::getPosition();
-		mh.x = -mhPos.x; mh.y = -mhPos.y;
 
 		if (ImGui::BeginTabBar("Tabs"))
 		{
@@ -863,19 +851,6 @@ int main()
 
 			if (ImGui::BeginTabItem("Rendering"))
 			{
-				if (ImGui::TreeNode("MouseHover"))
-				{
-					ImGui::Text("Pos: (%d, %d)", mh.x, mh.y);
-					ImGui::Text("colorsCaptured: %d", mh.colorsCaptured);
-
-					ImGui::Text("sfPix: (%d, %d, %d, %d)", mh.sfPix.r, mh.sfPix.g, mh.sfPix.b, mh.sfPix.a);
-					ImGui::Text("rawColor: (%.3f, %.3f, %.3f)", mh.rawColor.r, mh.rawColor.g, mh.rawColor.b);
-					ImGui::Text("displayColor: (%.3f, %.3f, %.3f)", mh.displayColor.r, mh.displayColor.g, mh.displayColor.b);
-					ImGui::Text("display: (%d, %d, %d, %d)", mh.display.r, mh.display.g, mh.display.b, mh.display.a);
-
-					ImGui::TreePop();
-				}
-
 				ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
 				if (ImGui::Button("Take Snapshot"))
@@ -895,13 +870,12 @@ int main()
 				}
 
 				sf::Vector2u res = rtData.cam.viewport.ToVecU();
-				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f))
+				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 0.5f))
 				{
 					res.x = std::max(1u, res.x);
 					res.y = std::max(1u, res.y);
 					window.setSize(res);
 				}
-				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::Checkbox("Lock FPS", &lockFPS))
 					timeToSleep = (lockFPS) ? ((1.0 / (double)maxFPS) - dT) : 0.0;
@@ -925,7 +899,6 @@ int main()
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
-				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
 				{
@@ -933,15 +906,11 @@ int main()
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
-				ImGuiUtils::LockMouseOnActive();
+
+				if (ImGui::DragScalar("Frame Render Interval", ImGuiDataType_U32, &displayFrameInterval, 0.05f))
+					displayFrameInterval = std::max(1u, displayFrameInterval);
 
 				if (ImGui::Checkbox("High-quality Render", &realRender))
-				{
-					cumulativeFrameCount = 0;
-					hasMoved = true;
-				}
-
-				if (ImGui::Checkbox("Alpha Intensity", &alphaIntensity))
 				{
 					cumulativeFrameCount = 0;
 					hasMoved = true;
@@ -954,6 +923,12 @@ int main()
 				}
 
 				if (ImGui::Checkbox("Randomize Sample Directions", &randomizeSampleDir))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
+				if (ImGui::Checkbox("Use ACES Tonemapping", &acesTone))
 				{
 					cumulativeFrameCount = 0;
 					hasMoved = true;
@@ -1058,7 +1033,6 @@ int main()
 			}
 		}
 
-		mh.colorsCaptured = cumulativeFrameCount;
 		if (realRender && cumulativeFrameCount > 0)
 		{
 			for (int i = 0; i < rtData.cam.viewport.dim; i++)
@@ -1067,18 +1041,10 @@ int main()
 					x = i % rtData.cam.viewport.w,
 					y = i / rtData.cam.viewport.w;
 
-				bool isHovered = (mh.x == x && mh.y == y);
-
 				double colorsCaptured = cumulativeFrameCount;
 
 				sf::Color sfPix = renderImg.getPixel({ x, y });
-				Color pix = alphaIntensity ? Color::DecodeRGBE(sfPix) : Color(sfPix);
-
-				if (isHovered)
-				{
-					mh.sfPix = sfPix;
-					mh.rawColor = pix;
-				}
+				Color pix = Color::DecodeRGBE(sfPix);
 
 				if (cumulativeLighting)
 				{
@@ -1090,22 +1056,21 @@ int main()
 					colorsCaptured = 1.0;
 				}
 
+				if (!shouldDisplay)
+					continue;
+
 				Color displayCol = render[i] / colorsCaptured;
 
-				if (isHovered)
-					mh.displayColor = displayCol;
-
-				if (alphaIntensity)
+				if (acesTone)
 					displayCol = displayCol.ACESFilm();
+				else
+					displayCol.Clamp();
 
 				sf::Color displaySfCol = {
 					(uint8_t)(displayCol.r * 255.0),
 					(uint8_t)(displayCol.g * 255.0),
 					(uint8_t)(displayCol.b * 255.0)
 				};
-
-				if (isHovered)
-					mh.display = displaySfCol;
 
 				displayImg.setPixel({ x, y }, displaySfCol);
 			}
@@ -1118,9 +1083,9 @@ int main()
 			
 			shader.setUniform("viewBounds", viewBounds);
 			shader.setUniform("realRender", realRender);
-			shader.setUniform("alphaIntensity", alphaIntensity);
 			shader.setUniform("disableLighting", disableLighting);
 			shader.setUniform("randomizeDir", randomizeSampleDir);
+			shader.setUniform("acesTone", acesTone);
 
 			shader.setUniform("frameCount", cumulativeLighting ? (int)cumulativeFrameCount : 0);
 		}
@@ -1128,9 +1093,11 @@ int main()
 		if (!tex.loadFromImage(renderImg))
 			std::cout << "Texture Load Failed!" << std::endl;
 
-		shader.setUniform("lastFrame", renderTex.getTexture());
+		if (realRender)
+			renderTex.clear({0, 0, 0, 0});
+		else
+			shader.setUniform("lastFrame", renderTex.getTexture());
 
-		renderTex.clear({0, 0, 0, alphaIntensity ? 0u : 255u});
 		renderTex.draw(sprite, &shader);
 		renderTex.display();
 
@@ -1138,13 +1105,17 @@ int main()
 		{
 			renderImg = renderTex.getTexture().copyToImage();
 
-			if (!displayTex.loadFromImage(displayImg))
-				std::cout << "Texture Load Failed!" << std::endl;
-			displaySprite.setTexture(displayTex);
+			if (shouldDisplay)
+			{
+				if (!displayTex.loadFromImage(displayImg))
+					std::cout << "Texture Load Failed!" << std::endl;
+				displaySprite.setTexture(displayTex);
+			}
 		}
 		else
 		{
-			displaySprite.setTexture(renderTex.getTexture());
+			if (shouldDisplay)
+				displaySprite.setTexture(renderTex.getTexture());
 		}
 
 		ImGui::End();

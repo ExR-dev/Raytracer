@@ -996,8 +996,8 @@ uniform int frameCount;
 uniform int samples;
 
 uniform bool realRender;
-uniform bool alphaIntensity;
 uniform bool randomizeDir;
+uniform bool acesTone;
 
 uniform int rndSeed;
 
@@ -1008,7 +1008,6 @@ out vec4 fragColor;
 void main(void)
 {
 	vec2 uv = vec2(vTexCoord.x, vTexCoord.y);
-	vec3 lFrame = texture2D(lastFrame, uv).rgb;
 	vec3 outCol = vec3(0);
 	
 	uint rndS = uint(rndSeed + 2147483647);
@@ -1029,19 +1028,22 @@ void main(void)
 		outCol += Raytrace(camPos, pixDir, riAir, seed);
 	outCol /= float(samples);
 
-	if (!alphaIntensity)
-		outCol = ACESFilm(outCol);
-
-	if (!realRender && !alphaIntensity)
+	if (realRender)
 	{
-		float avgWeight = 1.0 / (float(frameCount + 1));
-		outCol = (lFrame.rgb * (1.0 - avgWeight)) + (outCol * avgWeight);
-	}
-
-	if (alphaIntensity)
 		fragColor = EncodeRGBE(outCol);
+	}
 	else
+	{
+		vec3 lFrame = texture2D(lastFrame, uv).rgb;
+
+		if (acesTone)
+			outCol = ACESFilm(outCol);
+
+		float avgWeight = 1.0 / (float(frameCount + 1));
+		outCol = (lFrame * (1.0 - avgWeight)) + (outCol * avgWeight);
+
 		fragColor = vec4(outCol, 1.0);
+	}
 
 	if (viewBounds)
 	{
@@ -1053,7 +1055,6 @@ void main(void)
 		if (GetFirstHit(camPos, pixDir, true, l, p, n, s, surface, albedo, specular, emission, absorption))
 			fragColor.xyz += albedo.xyz * albedo.w + emission.xyz * emission.w;
 	}
-
 }
 
 /*=======================================================================================================*/
