@@ -293,6 +293,7 @@
     <ClInclude Include="Vec3.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Default.vert" />
     <None Include="External\SFML-3.0.2\include\SFML\Audio\SoundFileFactory.inl" />
     <None Include="External\SFML-3.0.2\include\SFML\Graphics\Color.inl" />
     <None Include="External\SFML-3.0.2\include\SFML\Graphics\Glsl.inl" />

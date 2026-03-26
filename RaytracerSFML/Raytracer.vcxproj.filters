@@ -527,6 +527,7 @@
     <None Include="External\SFML-3.0.2\include\SFML\Window\WindowBase.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="Default.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

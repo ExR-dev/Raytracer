@@ -463,7 +463,6 @@ int main()
 	if (!sf::Shader::isAvailable())
 		return 1;
 
-
 	unsigned int nextSnapshot = 0;
 
 	// Build Scene
@@ -499,8 +498,8 @@ int main()
 
 	sf::Vector2i deltas, windowPos;
 
-	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds, alphaIntensity;
-	unsigned int perPixelSamples, maxBounces;
+	bool cumulativeLighting, realRender, randomizeSampleDir, keepConstant, giveControl, disableLighting, viewBounds, acesTone;
+	unsigned int perPixelSamples, maxBounces, displayFrameInterval;
 
 	{
 		keepConstant = false;
@@ -508,17 +507,18 @@ int main()
 
 		cumulativeLighting = true;
 		realRender = false;
-		alphaIntensity = false;
 		randomizeSampleDir = true;
 		disableLighting = false;
 		viewBounds = false;
+		acesTone = true;
 		perPixelSamples = 8;
 		maxBounces = 6;
+		displayFrameInterval = 3;
 	}
 
 
 	sf::Shader shader;
-	if (!shader.loadFromFile("RaytracerShader.frag", sf::Shader::Type::Fragment))
+	if (!shader.loadFromFile("Default.vert", "RaytracerShader.frag"))
 	{
 		std::cerr << "Failed to load shader" << std::endl;
 		return -1;
@@ -530,7 +530,6 @@ int main()
 	shader.setUniform("maxBounces", (int)maxBounces);
 
 	BindShapes(shapes, shader);
-
 
 	sf::Clock clock, imClock;
 	double lT = 0.0, tT = 0.0, dT = 0.0;
@@ -555,6 +554,7 @@ int main()
 		dT = tT - lT;
 
 		bool hasMoved = false;
+		bool shouldDisplay = (cumulativeFrameCount - 1) % displayFrameInterval == 0;
 
 		while (std::optional<sf::Event> optEvent = window.pollEvent())
 		{
@@ -870,13 +870,12 @@ int main()
 				}
 
 				sf::Vector2u res = rtData.cam.viewport.ToVecU();
-				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 1.0f))
+				if (ImGui::DragScalarN("Resolution", ImGuiDataType_U32, &res.x, 2, 0.5f))
 				{
 					res.x = std::max(1u, res.x);
 					res.y = std::max(1u, res.y);
 					window.setSize(res);
 				}
-				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::Checkbox("Lock FPS", &lockFPS))
 					timeToSleep = (lockFPS) ? ((1.0 / (double)maxFPS) - dT) : 0.0;
@@ -886,9 +885,9 @@ int main()
 					ImGui::SameLine();
 
 					int maxFPSint = (int)maxFPS;
-					if (ImGui::DragInt("##MaxFPS", &maxFPSint, 0.5f, 10))
+					if (ImGui::DragInt("##MaxFPS", &maxFPSint, 0.5f, 5))
 					{
-						maxFPS = (unsigned int)std::max(10, maxFPSint);
+						maxFPS = (unsigned int)std::max(5, maxFPSint);
 						timeToSleep = (1.0 / (double)maxFPS) - dT;
 					}
 					ImGuiUtils::LockMouseOnActive();
@@ -900,7 +899,6 @@ int main()
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
-				ImGuiUtils::LockMouseOnActive();
 
 				if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
 				{
@@ -908,15 +906,11 @@ int main()
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
-				ImGuiUtils::LockMouseOnActive();
+
+				if (ImGui::DragScalar("Frame Render Interval", ImGuiDataType_U32, &displayFrameInterval, 0.05f))
+					displayFrameInterval = std::max(1u, displayFrameInterval);
 
 				if (ImGui::Checkbox("High-quality Render", &realRender))
-				{
-					cumulativeFrameCount = 0;
-					hasMoved = true;
-				}
-
-				if (ImGui::Checkbox("Alpha Intensity", &alphaIntensity))
 				{
 					cumulativeFrameCount = 0;
 					hasMoved = true;
@@ -934,6 +928,12 @@ int main()
 					hasMoved = true;
 				}
 
+				if (ImGui::Checkbox("Use ACES Tonemapping", &acesTone))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
+
 				if (ImGui::Checkbox("Keep Sample Directions Constant", &keepConstant))
 				{
 					cumulativeFrameCount = 0;
@@ -946,6 +946,7 @@ int main()
 
 				ImGui::EndTabItem();
 			}
+			
 
 			ImGui::EndTabBar();
 		}
@@ -1043,17 +1044,7 @@ int main()
 				double colorsCaptured = cumulativeFrameCount;
 
 				sf::Color sfPix = renderImg.getPixel({ x, y });
-				Color pix = sfPix;
-
-				if (alphaIntensity)
-				{
-					double alpha = ((double)sfPix.a) / 255.0;
-
-					pix *= (sfPix.a > 0) ? (1.0 / alpha) : 99999.0;
-					//pix *= (sfPix.a > 0) ? std::pow(2.0, alpha * 8.0) : 1.0;
-
-					//pix = Color::DecodeRGBE(sfPix);
-				}
+				Color pix = Color::DecodeRGBE(sfPix);
 
 				if (cumulativeLighting)
 				{
@@ -1065,16 +1056,23 @@ int main()
 					colorsCaptured = 1.0;
 				}
 
+				if (!shouldDisplay)
+					continue;
+
 				Color displayCol = render[i] / colorsCaptured;
 
-				if (alphaIntensity)
+				if (acesTone)
 					displayCol = displayCol.ACESFilm();
+				else
+					displayCol.Clamp();
 
-				displayImg.setPixel({ x, y }, {
+				sf::Color displaySfCol = {
 					(uint8_t)(displayCol.r * 255.0),
 					(uint8_t)(displayCol.g * 255.0),
 					(uint8_t)(displayCol.b * 255.0)
-				});
+				};
+
+				displayImg.setPixel({ x, y }, displaySfCol);
 			}
 		}
 
@@ -1085,9 +1083,9 @@ int main()
 			
 			shader.setUniform("viewBounds", viewBounds);
 			shader.setUniform("realRender", realRender);
-			shader.setUniform("alphaIntensity", alphaIntensity);
 			shader.setUniform("disableLighting", disableLighting);
 			shader.setUniform("randomizeDir", randomizeSampleDir);
+			shader.setUniform("acesTone", acesTone);
 
 			shader.setUniform("frameCount", cumulativeLighting ? (int)cumulativeFrameCount : 0);
 		}
@@ -1095,7 +1093,10 @@ int main()
 		if (!tex.loadFromImage(renderImg))
 			std::cout << "Texture Load Failed!" << std::endl;
 
-		shader.setUniform("lastFrame", renderTex.getTexture());
+		if (realRender)
+			renderTex.clear({0, 0, 0, 0});
+		else
+			shader.setUniform("lastFrame", renderTex.getTexture());
 
 		renderTex.draw(sprite, &shader);
 		renderTex.display();
@@ -1104,13 +1105,17 @@ int main()
 		{
 			renderImg = renderTex.getTexture().copyToImage();
 
-			if (!displayTex.loadFromImage(displayImg))
-				std::cout << "Texture Load Failed!" << std::endl;
-			displaySprite.setTexture(displayTex);
+			if (shouldDisplay)
+			{
+				if (!displayTex.loadFromImage(displayImg))
+					std::cout << "Texture Load Failed!" << std::endl;
+				displaySprite.setTexture(displayTex);
+			}
 		}
 		else
 		{
-			displaySprite.setTexture(renderTex.getTexture());
+			if (shouldDisplay)
+				displaySprite.setTexture(renderTex.getTexture());
 		}
 
 		ImGui::End();

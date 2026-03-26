@@ -39,6 +39,8 @@ static void WrapMousePos(int axises_mask)
 
 void ImGuiUtils::LockMouseOnActive()
 {
+	return; // TEMP: Disabled
+
 	static ImGuiID target_item = 0;
 	static sf::Vector2i  prev_mous_pos;
 
