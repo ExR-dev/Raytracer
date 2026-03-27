@@ -7,8 +7,8 @@
 struct Viewport
 {
 	unsigned int
-		w = 1280,
-		h = 720,
+		w = 800,
+		h = 800,
 		dim = w * h;
 
 	Viewport() { }

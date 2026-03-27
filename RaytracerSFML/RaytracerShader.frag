@@ -1,9 +1,4 @@
-//#version 130
 #version 400
-//#extension GL_EXT_gpu_shader4 : enable
-//#extension GL_ARB_gpu_shader_fp64 : enable
-
-
 
 
 /*=======================================================================================================*/
@@ -853,8 +848,10 @@ bool GetFirstHit(in vec3 rO, in vec3 rD, in bool showBounds, inout float l, inou
 				emission = planeMats[i*MATVALS+3];
 				absorption = planeMats[i*MATVALS+4];
 
-				int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
-				albedo.xyz *= (tile % 2 == 0) ? 1.0 : 0.666;
+				// Procedural tiling pattern
+				//int tile = (int((abs(p.x) + floor(p.x)) * 2.0) % 2 + int((abs(p.z) + floor(p.z)) * 2.0) % 2);
+				//albedo.xyz *= (tile % 2 == 0) ? 1.0 : 0.666;
+
 				hasHit = true;
 			}
 		}

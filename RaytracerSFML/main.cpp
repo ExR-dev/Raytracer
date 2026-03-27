@@ -494,7 +494,7 @@ int main()
 	sf::Sprite sprite(tex), displaySprite(displayTex);
 
 	std::vector<Shape*> shapes; 
-	LoadScene("Scene 1", shapes, rtData);
+	LoadScene("Cornell", shapes, rtData);
 
 	sf::Vector2i deltas, windowPos;
 
@@ -686,135 +686,139 @@ int main()
 			{
 				bool isEdited = false;
 
-				ImGui::SeparatorText("Saving/Loading");
-
-				static std::string saveName = "Scene 1";
-
-				if (ImGui::Button("Save"))
-					SaveScene(shapes, rtData, saveName);
-
-				ImGui::SameLine();
-				ImGui::InputText("##SaveName", &saveName);
-
-				std::vector<std::string> sceneList = GetSceneList();
-				static int currSceneIndex = -1;
-
-
-				if (ImGui::Button("Load"))
+				if (ImGui::TreeNode("Saving/Loading"))
 				{
-					if (currSceneIndex >= 0 && currSceneIndex < sceneList.size())
+					static std::string saveName = "Scene 1";
+
+					if (ImGui::Button("Save"))
+						SaveScene(shapes, rtData, saveName);
+
+					ImGui::SameLine();
+					ImGui::InputText("##SaveName", &saveName);
+
+					std::vector<std::string> sceneList = GetSceneList();
+					static int currSceneIndex = -1;
+
+
+					if (ImGui::Button("Load"))
 					{
-						for (Shape* shape : shapes)
-							delete shape;
+						if (currSceneIndex >= 0 && currSceneIndex < sceneList.size())
+						{
+							for (Shape* shape : shapes)
+								delete shape;
 
-						LoadScene(sceneList[currSceneIndex], shapes, rtData);
-						isEdited = true;
+							LoadScene(sceneList[currSceneIndex], shapes, rtData);
+							isEdited = true;
+						}
 					}
-				}
 
-				auto comboFunc = [](void* data, int idx, const char** out_text){
-					const std::vector<std::string>* scenes = static_cast<std::vector<std::string>*>(data);
-					if (idx < 0 || idx >= scenes->size())
-						return false;
-					*out_text = (*scenes)[idx].c_str();
-					return true;
-				};
+					auto comboFunc = [](void* data, int idx, const char** out_text) {
+						const std::vector<std::string>* scenes = static_cast<std::vector<std::string>*>(data);
+						if (idx < 0 || idx >= scenes->size())
+							return false;
+						*out_text = (*scenes)[idx].c_str();
+						return true;
+						};
 
-				ImGui::SameLine();
-				ImGui::Combo("##SceneList", &currSceneIndex, comboFunc, &sceneList, sceneList.size());
-
-
-				ImGui::SeparatorText("Scene Editing");
-
-				if (ImGui::TreeNode("Skybox"))
-				{
-					isEdited |= ImGui::Checkbox("Show Skybox", &rtData.skybox.showSkybox);
-
-					ImGuiColorEditFlags flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
-					isEdited |= ImGui::ColorEdit3("Peak Color", &rtData.skybox.peakCol.x, flags);
-					ImGuiUtils::LockMouseOnActive();
-
-					isEdited |= ImGui::ColorEdit3("Horizon Color", &rtData.skybox.horizonCol.x, flags);
-					ImGuiUtils::LockMouseOnActive();
-
-					isEdited |= ImGui::ColorEdit3("Void Color", &rtData.skybox.voidCol.x, flags);
-					ImGuiUtils::LockMouseOnActive();
-
-					isEdited |= ImGui::ColorEdit3("Sun Color", &rtData.skybox.sunCol.x, flags);
-					ImGuiUtils::LockMouseOnActive();
-
-					isEdited |= ImGui::DragFloat3("Sun Direction", &rtData.skybox.sunDir.x, 0.1f);
-					ImGuiUtils::LockMouseOnActive();
-
-					isEdited |= ImGui::DragFloat("Sun Size", &rtData.skybox.sunSize, 0.1f, 0.0f);
-					ImGuiUtils::LockMouseOnActive();
-
-					isEdited |= ImGui::DragFloat("Sun Flare", &rtData.skybox.sunFlare, 0.1f, 0.0f);
-					ImGuiUtils::LockMouseOnActive();
+					ImGui::SameLine();
+					ImGui::Combo("##SceneList", &currSceneIndex, comboFunc, &sceneList, sceneList.size());
 
 					ImGui::TreePop();
 				}
 
-				// Shape Type Selection and Addition
-				enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
-				static ShapeType currSelectedShape = ShapeType::AABB;
-
-				if (ImGui::Button("Add"))
+				if (ImGui::TreeNode("Scene Editing"))
 				{
-					isEdited = true;
-
-					Shape* newShape;
-					switch (currSelectedShape)
+					if (ImGui::TreeNode("Skybox"))
 					{
-					case ShapeType::AABB:
-						newShape = new ShapeAABB;
-						break;
-					case ShapeType::OBB:
-						newShape = new ShapeOBB;
-						break;
-					case ShapeType::Sphere:
-						newShape = new ShapeSphere;
-						break;
-					case ShapeType::Tri:
-						newShape = new ShapeTri;
-						break;
-					case ShapeType::Plane:
-						newShape = new ShapePlane;
-						break;
-					default:
-						newShape = new ShapeAABB;
+						isEdited |= ImGui::Checkbox("Show Skybox", &rtData.skybox.showSkybox);
+
+						ImGuiColorEditFlags flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
+						isEdited |= ImGui::ColorEdit3("Peak Color", &rtData.skybox.peakCol.x, flags);
+						ImGuiUtils::LockMouseOnActive();
+
+						isEdited |= ImGui::ColorEdit3("Horizon Color", &rtData.skybox.horizonCol.x, flags);
+						ImGuiUtils::LockMouseOnActive();
+
+						isEdited |= ImGui::ColorEdit3("Void Color", &rtData.skybox.voidCol.x, flags);
+						ImGuiUtils::LockMouseOnActive();
+
+						isEdited |= ImGui::ColorEdit3("Sun Color", &rtData.skybox.sunCol.x, flags);
+						ImGuiUtils::LockMouseOnActive();
+
+						isEdited |= ImGui::DragFloat3("Sun Direction", &rtData.skybox.sunDir.x, 0.1f);
+						ImGuiUtils::LockMouseOnActive();
+
+						isEdited |= ImGui::DragFloat("Sun Size", &rtData.skybox.sunSize, 0.1f, 0.0f);
+						ImGuiUtils::LockMouseOnActive();
+
+						isEdited |= ImGui::DragFloat("Sun Flare", &rtData.skybox.sunFlare, 0.1f, 0.0f);
+						ImGuiUtils::LockMouseOnActive();
+
+						ImGui::TreePop();
 					}
 
-					shapes.push_back(newShape);
-					BindShapes(shapes, shader);
-					hasMoved = true;
-				}
+					ImGui::BeginChild("Shapes", ImGui::GetContentRegionAvail(), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY);
 
-				ImGui::SameLine();
-				ImGui::Combo("##ShapeType", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
-
-
-				// Shape List and Editing
-				ImGui::BeginChild("Shapes", ImGui::GetContentRegionAvail(), ImGuiChildFlags_Borders);
-				for (int i = 0; i < shapes.size(); ++i)
-				{
-					Shape* shape = shapes[i];
-					ImGui::PushID(shape);
-
-					bool remove = false;
-					isEdited |= EditShape(*shape, remove);
-
-					if (remove)
+					// Shape List and Editing
+					for (int i = 0; i < shapes.size(); ++i)
 					{
-						shapes.erase(std::remove(shapes.begin(), shapes.end(), shape), shapes.end());
-						delete shape;
+						Shape* shape = shapes[i];
+						ImGui::PushID(shape);
+
+						bool remove = false;
+						isEdited |= EditShape(*shape, remove);
+
+						if (remove)
+						{
+							shapes.erase(std::remove(shapes.begin(), shapes.end(), shape), shapes.end());
+							delete shape;
+							isEdited = true;
+							i--;
+						}
+
+						ImGui::PopID();
+					}
+					
+					// Shape Type Selection and Addition
+					enum class ShapeType { AABB, OBB, Sphere, Tri, Plane };
+					static ShapeType currSelectedShape = ShapeType::AABB;
+					if (ImGui::Button("Add"))
+					{
 						isEdited = true;
-						i--;
+
+						Shape* newShape;
+						switch (currSelectedShape)
+						{
+						case ShapeType::AABB:
+							newShape = new ShapeAABB;
+							break;
+						case ShapeType::OBB:
+							newShape = new ShapeOBB;
+							break;
+						case ShapeType::Sphere:
+							newShape = new ShapeSphere;
+							break;
+						case ShapeType::Tri:
+							newShape = new ShapeTri;
+							break;
+						case ShapeType::Plane:
+							newShape = new ShapePlane;
+							break;
+						default:
+							newShape = new ShapeAABB;
+						}
+
+						shapes.push_back(newShape);
+						BindShapes(shapes, shader);
+						hasMoved = true;
 					}
 
-					ImGui::PopID();
+					ImGui::SameLine();
+					ImGui::Combo("##ShapeType", (int*)&currSelectedShape, "AABB\0OBB\0Sphere\0Triangle\0Plane\0\0");
+
+					ImGui::EndChild();
+					ImGui::TreePop();
 				}
-				ImGui::EndChild();
 
 				if (isEdited)
 				{
@@ -893,21 +897,21 @@ int main()
 					ImGuiUtils::LockMouseOnActive();
 				}
 
-				if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 1.0f, 1, 1024))
+				if (ImGui::DragInt("Per Pixel Samples", (int*)&perPixelSamples, 0.2f, 1, 256))
 				{
 					shader.setUniform("samples", (int)perPixelSamples);
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
 
-				if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 1.0f, 1, 64))
+				if (ImGui::DragInt("Max Bounces", (int*)&maxBounces, 0.2f, 1, 32))
 				{
 					shader.setUniform("maxBounces", (int)maxBounces);
 					cumulativeFrameCount = 0;
 					hasMoved = true;
 				}
 
-				if (ImGui::DragScalar("Frame Render Interval", ImGuiDataType_U32, &displayFrameInterval, 0.05f))
+				if (ImGui::DragScalar("Frame Render Interval", ImGuiDataType_U32, &displayFrameInterval, 0.1f))
 					displayFrameInterval = std::max(1u, displayFrameInterval);
 
 				if (ImGui::Checkbox("High-quality Render", &realRender))
@@ -940,9 +944,17 @@ int main()
 					hasMoved = true;
 				}
 
-				ImGui::Checkbox("Disable Lighting", &disableLighting);
+				if (ImGui::Checkbox("Disable Lighting", &disableLighting)) 
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
 
-				ImGui::Checkbox("View Bounds", &viewBounds);
+				if (ImGui::Checkbox("View Bounds", &viewBounds))
+				{
+					cumulativeFrameCount = 0;
+					hasMoved = true;
+				}
 
 				ImGui::EndTabItem();
 			}
