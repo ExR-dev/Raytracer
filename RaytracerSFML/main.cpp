@@ -480,6 +480,8 @@ int main()
 		std::cout << "Failed to initialize ImGui-SFML" << std::endl;
 
 	Color* render = new Color[rtData.cam.viewport.dim];
+
+	#pragma omp parallel for
 	for (int i = 0; i < rtData.cam.viewport.dim; i++)
 		render[i] = Color();
 
@@ -649,6 +651,8 @@ int main()
 
 				delete[] render;
 				render = new Color[rtData.cam.viewport.dim];
+
+				#pragma omp parallel for
 				for (int i = 0; i < rtData.cam.viewport.dim; i++)
 					render[i] = Color();
 
@@ -1037,6 +1041,7 @@ int main()
 
 			if (realRender)
 			{
+				#pragma omp parallel for
 				for (int i = 0; i < rtData.cam.viewport.dim; i++)
 				{
 					render[i] = Color();
@@ -1047,6 +1052,7 @@ int main()
 
 		if (realRender && cumulativeFrameCount > 0)
 		{
+			#pragma omp parallel for
 			for (int i = 0; i < rtData.cam.viewport.dim; i++)
 			{
 				unsigned int
